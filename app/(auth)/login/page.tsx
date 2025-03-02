@@ -11,16 +11,26 @@ export default function LoginPage() {
         try {
             setLoading(true);
             const supabase = createClientSupabase();
-            const { error } = await supabase.auth.signInWithOAuth({
+            
+            // skipBrowserRedirectを使用して認証URLを取得し、手動でリダイレクト
+            const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
                     redirectTo: `${window.location.origin}/callback`,
-                },
+                    skipBrowserRedirect: true,
+                }
             });
 
             if (error) throw error;
+            
+            if (data?.url) {
+                // 取得したURLに手動でリダイレクト
+                window.location.href = data.url;
+            } else {
+                throw new Error('認証URLが取得できませんでした');
+            }
         } catch (error) {
-            console.error('Error logging in with Google', error);
+            console.error('Googleログインエラー:', error);
             alert('Googleログインに失敗しました。もう一度お試しください。');
         } finally {
             setLoading(false);
