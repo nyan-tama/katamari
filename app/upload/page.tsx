@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { createClientSupabase } from '@/lib/supabase-client';
 import { User } from '@supabase/supabase-js';
 
 export default function UploadPage() {
@@ -18,6 +18,7 @@ export default function UploadPage() {
     // ユーザーのログイン状態を確認
     useEffect(() => {
         const checkUser = async () => {
+            const supabase = createClientSupabase();
             const { data: { session } } = await supabase.auth.getSession();
 
             if (!session?.user) {
@@ -35,13 +36,25 @@ export default function UploadPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!modelFile || !title || !user) {
-            alert('タイトルと3Dモデルファイルは必須です');
+        if (!title || !user) {
+            alert('タイトルは必須です');
             return;
         }
 
         try {
             setLoading(true);
+            const supabase = createClientSupabase();
+
+            // モデルファイルのバリデーション
+            if (!modelFile) {
+                alert('モデルファイルは必須です');
+                return;
+            }
+
+            // ファイルサイズチェック
+            if (modelFile.size > 50 * 1024 * 1024) {
+                throw new Error('ファイルサイズが大きすぎます（最大50MB）');
+            }
 
             // ファイル名から拡張子を取得
             const modelExt = modelFile.name.split('.').pop();
@@ -50,43 +63,65 @@ export default function UploadPage() {
 
             // モデルファイルをアップロード
             const { error: modelUploadError } = await supabase.storage
-                .from('models')
-                .upload(modelPath, modelFile);
+                .from('model_files')
+                .upload(modelPath, modelFile, {
+                    upsert: true,
+                    cacheControl: '3600'
+                });
 
-            if (modelUploadError) throw modelUploadError;
+            if (modelUploadError) {
+                throw modelUploadError;
+            }
 
             // サムネイル画像がある場合はアップロード
             if (thumbnailFile) {
+                // サムネイルのサイズチェック (例: 5MB制限)
+                if (thumbnailFile.size > 5 * 1024 * 1024) {
+                    throw new Error('サムネイルサイズが大きすぎます（最大5MB）');
+                }
+
                 const thumbnailExt = thumbnailFile.name.split('.').pop();
                 thumbnailPath = `${user.id}/${Date.now()}_thumbnail.${thumbnailExt}`;
 
                 const { error: thumbnailUploadError } = await supabase.storage
-                    .from('thumbnails')
-                    .upload(thumbnailPath, thumbnailFile);
+                    .from('model_thumbnails')
+                    .upload(thumbnailPath, thumbnailFile, {
+                        upsert: true,
+                        cacheControl: '3600'
+                    });
 
-                if (thumbnailUploadError) throw thumbnailUploadError;
+                if (thumbnailUploadError) {
+                    throw thumbnailUploadError;
+                }
             }
 
-            // モデルのメタデータをデータベースに保存
+            // データベースに保存
             const { error: insertError } = await supabase
                 .from('models')
                 .insert({
                     user_id: user.id,
                     title,
-                    description,
+                    description: description || null,
                     file_url: modelPath,
                     thumbnail_url: thumbnailPath
                 });
 
-            if (insertError) throw insertError;
+            if (insertError) {
+                throw insertError;
+            }
 
             alert('モデルが正常にアップロードされました！');
 
             // アップロード後にプロフィールページに戻る
             router.push('/profile');
         } catch (error) {
-            console.error('Error uploading model:', error);
-            alert('アップロード中にエラーが発生しました。もう一度お試しください。');
+            let errorMessage = '不明なエラーが発生しました。';
+
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            }
+
+            alert(`アップロード中にエラーが発生しました: ${errorMessage}`);
         } finally {
             setLoading(false);
         }

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClientSupabase } from '@/lib/supabase-client';
 import { User } from '@supabase/supabase-js';
 
 export default function Header() {
@@ -12,6 +12,7 @@ export default function Header() {
     useEffect(() => {
         // ユーザーのセッション情報を取得
         const getUser = async () => {
+            const supabase = createClientSupabase();
             const { data: { session } } = await supabase.auth.getSession();
             setUser(session?.user || null);
             setLoading(false);
@@ -20,6 +21,7 @@ export default function Header() {
         getUser();
 
         // ログイン状態の変化を監視
+        const supabase = createClientSupabase();
         const { data: authListener } = supabase.auth.onAuthStateChange(
             (event, session) => {
                 setUser(session?.user || null);
@@ -32,6 +34,7 @@ export default function Header() {
     }, []);
 
     const handleLogout = async () => {
+        const supabase = createClientSupabase();
         await supabase.auth.signOut();
     };
 

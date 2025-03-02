@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { createClientSupabase } from '@/lib/supabase-client';
 
 export default function AuthCallbackPage() {
     const router = useRouter();
@@ -11,8 +11,38 @@ export default function AuthCallbackPage() {
         // URLからハッシュを取得し、セッションを確立
         const handleAuthCallback = async () => {
             try {
-                const { error } = await supabase.auth.getSession();
-                if (error) throw error;
+                const supabase = createClientSupabase();
+                // コールバックパラメータからセッションを交換
+                const { searchParams } = new URL(window.location.href);
+                const code = searchParams.get('code');
+
+                if (code) {
+                    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+                    if (error) throw error;
+
+                    // セッションが確立されたらユーザー情報を取得
+                    const user = data.user;
+
+                    if (user) {
+                        // public.usersテーブルにユーザーが存在するか確認
+                        const { data: existingUser } = await supabase
+                            .from('users')
+                            .select('*')
+                            .eq('id', user.id)
+                            .single();
+
+                        // 存在しない場合は新規作成
+                        if (!existingUser) {
+                            await supabase.from('users').insert({
+                                id: user.id,
+                                email: user.email ?? '',
+                                name: user.user_metadata.full_name || user.email?.split('@')[0] || 'User',
+                                avatar_url: user.user_metadata.avatar_url
+                            });
+                        }
+                    }
+                }
 
                 // ログイン成功時にホームにリダイレクト
                 router.push('/');

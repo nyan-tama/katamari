@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { createClientSupabase } from '@/lib/supabase-client';
 import { User } from '@supabase/supabase-js';
 import Link from 'next/link';
 
@@ -26,6 +26,7 @@ export default function ProfilePage() {
         const getUser = async () => {
             try {
                 setLoading(true);
+                const supabase = createClientSupabase();
                 const { data: { session } } = await supabase.auth.getSession();
 
                 if (!session?.user) {
@@ -63,6 +64,7 @@ export default function ProfilePage() {
 
         try {
             setLoading(true);
+            const supabase = createClientSupabase();
 
             // データベースからモデルを削除
             const { error: deleteError } = await supabase
