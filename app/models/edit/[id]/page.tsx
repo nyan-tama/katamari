@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createClientSupabase } from '@/lib/supabase-client';
+import { createClientSupabase, getPublicUrl } from '@/lib/supabase-client';
 import Link from 'next/link';
 
 interface Model {
@@ -66,11 +66,7 @@ export default function EditModelPage() {
 
                 // サムネイル画像のプレビューURLを設定
                 if (modelData.thumbnail_url) {
-                    const { data } = supabase.storage
-                        .from('model_thumbnails')
-                        .getPublicUrl(modelData.thumbnail_url);
-
-                    setThumbnailPreview(data.publicUrl);
+                    setThumbnailPreview(getPublicUrl('model_thumbnails', modelData.thumbnail_url));
                 }
             } catch (error) {
                 console.error('Error fetching model:', error);

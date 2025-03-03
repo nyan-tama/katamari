@@ -95,6 +95,19 @@ export default function UploadPage() {
                 }
             }
 
+            // 公開URLを取得
+            const { data: modelFileData } = supabase.storage
+                .from('model_files')
+                .getPublicUrl(modelPath);
+
+            let thumbnailPublicUrl = null;
+            if (thumbnailPath) {
+                const { data: thumbnailData } = supabase.storage
+                    .from('model_thumbnails')
+                    .getPublicUrl(thumbnailPath);
+                thumbnailPublicUrl = thumbnailData.publicUrl;
+            }
+
             // データベースに保存
             const { error: insertError } = await supabase
                 .from('models')
@@ -102,8 +115,8 @@ export default function UploadPage() {
                     user_id: user.id,
                     title,
                     description: description || null,
-                    file_url: modelPath,
-                    thumbnail_url: thumbnailPath
+                    file_url: modelFileData.publicUrl,
+                    thumbnail_url: thumbnailPublicUrl
                 });
 
             if (insertError) {
