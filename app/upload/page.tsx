@@ -95,15 +95,16 @@ export default function UploadPage() {
                 }
             }
 
-            // データベースに保存
+            // データベースに保存する際は相対パスを使用する
+            // 公開URLの取得はビュー時に行う
             const { error: insertError } = await supabase
                 .from('models')
                 .insert({
                     user_id: user.id,
                     title,
                     description: description || null,
-                    file_url: modelPath,
-                    thumbnail_url: thumbnailPath
+                    file_url: modelPath, // 完全なURLではなく相対パスを保存
+                    thumbnail_url: thumbnailPath // 完全なURLではなく相対パスを保存
                 });
 
             if (insertError) {

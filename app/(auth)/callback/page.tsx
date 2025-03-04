@@ -8,43 +8,54 @@ export default function AuthCallbackPage() {
     const router = useRouter();
 
     useEffect(() => {
-        // URLからハッシュを取得し、セッションを確立
         const handleAuthCallback = async () => {
             try {
+                console.log('認証コールバック処理開始');
                 const supabase = createClientSupabase();
-                // コールバックパラメータからセッションを交換
+                
+                // URLからハッシュパラメータを取得（Implicitフロー）
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                const accessToken = hashParams.get('access_token');
+                
+                console.log('アクセストークン取得状態:', accessToken ? 'あり' : 'なし');
+                
+                // URLからクエリパラメータを取得（Authorizationコードフロー）
                 const { searchParams } = new URL(window.location.href);
                 const code = searchParams.get('code');
-
-                if (code) {
-                    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-                    if (error) throw error;
-
-                    // セッションが確立されたらユーザー情報を取得
-                    const user = data.user;
-
-                    if (user) {
-                        // public.usersテーブルにユーザーが存在するか確認
-                        const { data: existingUser } = await supabase
-                            .from('users')
-                            .select('*')
-                            .eq('id', user.id)
-                            .single();
-
-                        // 存在しない場合は新規作成
-                        if (!existingUser) {
-                            await supabase.from('users').insert({
-                                id: user.id,
-                                email: user.email ?? '',
-                                name: user.user_metadata.full_name || user.email?.split('@')[0] || 'User',
-                                avatar_url: user.user_metadata.avatar_url
-                            });
-                        }
+                
+                console.log('認証コード取得状態:', code ? 'あり' : 'なし');
+                
+                // Implicitフロー（ハッシュパラメータ）を優先
+                if (accessToken) {
+                    console.log('Implicitフローでの認証処理');
+                    // accessTokenを使ってユーザー情報を取得
+                    const { data, error } = await supabase.auth.getUser(accessToken);
+                    
+                    if (error) {
+                        console.error('ユーザー情報取得エラー:', error);
+                        throw error;
                     }
+                    
+                    console.log('認証されたユーザー情報:', data.user);
+                } 
+                // Authorization Code フロー（code を使用）
+                else if (code) {
+                    console.log('Authorization Codeフローでの認証処理');
+                    // codeをセッションと交換
+                    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+                    
+                    if (error) {
+                        console.error('セッション交換エラー:', error);
+                        throw error;
+                    }
+                    
+                    console.log('認証されたユーザー情報:', data.user);
+                } else {
+                    throw new Error('認証情報が見つかりません（アクセストークンも認証コードもありません）');
                 }
 
                 // ログイン成功時にホームにリダイレクト
+                console.log('認証成功、ホームページへリダイレクト');
                 router.push('/');
             } catch (error) {
                 console.error('Error handling auth callback:', error);

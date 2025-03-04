@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientSupabase } from '@/lib/supabase-client';
+import { createClientSupabase, getPublicUrl } from '@/lib/supabase-client';
 import { User } from '@supabase/supabase-js';
 import Link from 'next/link';
 
@@ -57,50 +57,6 @@ export default function ProfilePage() {
         getUser();
     }, [router]);
 
-    const handleDeleteModel = async (modelId: string, fileUrl: string, thumbnailUrl?: string) => {
-        if (!confirm('このモデルを削除してもよろしいですか？この操作は元に戻せません。')) {
-            return;
-        }
-
-        try {
-            setLoading(true);
-            const supabase = createClientSupabase();
-
-            // データベースからモデルを削除
-            const { error: deleteError } = await supabase
-                .from('models')
-                .delete()
-                .eq('id', modelId);
-
-            if (deleteError) throw deleteError;
-
-            // ストレージからモデルファイルを削除
-            const { error: fileDeleteError } = await supabase.storage
-                .from('models')
-                .remove([fileUrl]);
-
-            if (fileDeleteError) console.error('Error deleting model file:', fileDeleteError);
-
-            // サムネイルがある場合は削除
-            if (thumbnailUrl) {
-                const { error: thumbnailDeleteError } = await supabase.storage
-                    .from('thumbnails')
-                    .remove([thumbnailUrl]);
-
-                if (thumbnailDeleteError) console.error('Error deleting thumbnail:', thumbnailDeleteError);
-            }
-
-            // 成功したら画面を更新
-            setUserModels(userModels.filter(model => model.id !== modelId));
-            alert('モデルを削除しました');
-        } catch (error) {
-            console.error('Error deleting model:', error);
-            alert('モデル削除中にエラーが発生しました');
-        } finally {
-            setLoading(false);
-        }
-    };
-
     if (loading) {
         return (
             <div className="container mx-auto px-4 py-8">
@@ -110,13 +66,6 @@ export default function ProfilePage() {
             </div>
         );
     }
-
-    // 画像URLを生成するヘルパー関数
-    const getThumbnailUrl = (thumbnailPath?: string): string | undefined => {
-        if (!thumbnailPath) return undefined;
-        const storageDomain = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_DOMAIN;
-        return `https://${storageDomain}/thumbnails/public/${thumbnailPath}`;
-    };
 
     return (
         <div className="container mx-auto px-4 py-8">
@@ -158,11 +107,20 @@ export default function ProfilePage() {
                                 <div key={model.id} className="bg-white rounded-lg shadow-md overflow-hidden">
                                     <div className="aspect-square relative bg-gray-100 flex items-center justify-center">
                                         {model.thumbnail_url ? (
-                                            <img
-                                                src={getThumbnailUrl(model.thumbnail_url)}
-                                                alt={model.title}
-                                                className="object-cover w-full h-full"
-                                            />
+                                            <>
+                                                <img
+                                                    src={getPublicUrl('model_thumbnails', model.thumbnail_url)}
+                                                    alt={model.title}
+                                                    className="object-cover w-full h-full"
+                                                    onError={(e) => {
+                                                        console.error(`サムネイル読み込みエラー: ${model.thumbnail_url}`);
+                                                        e.currentTarget.src = '/no-image.png';
+                                                    }}
+                                                />
+                                                <div className="absolute bottom-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1">
+                                                    {model.thumbnail_url.split('/').pop()?.substring(0, 10)}...
+                                                </div>
+                                            </>
                                         ) : (
                                             <span className="text-gray-400">サムネイルなし</span>
                                         )}
@@ -174,7 +132,11 @@ export default function ProfilePage() {
                                             </Link>
                                         </h3>
                                         <p className="text-gray-500 text-sm mb-3">
-                                            {new Date(model.created_at).toLocaleDateString('ja-JP')}
+                                            {new Date(model.created_at).toLocaleDateString('ja-JP', {
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric'
+                                            })}
                                         </p>
                                         <div className="flex gap-2">
                                             <Link
@@ -183,12 +145,6 @@ export default function ProfilePage() {
                                             >
                                                 編集
                                             </Link>
-                                            <button
-                                                onClick={() => handleDeleteModel(model.id, model.file_url, model.thumbnail_url)}
-                                                className="text-sm text-red-600 hover:text-red-800"
-                                            >
-                                                削除
-                                            </button>
                                         </div>
                                     </div>
                                 </div>

@@ -16,3 +16,16 @@ import { Database } from '@/types/supabase';
 export const createClientSupabase = () => {
     return createClientComponentClient<Database>();
 };
+
+// ストレージからの公開URLを取得する関数
+export const getPublicUrl = (bucket: string, path: string) => {
+    if (!path) return '';
+
+    const supabase = createClientComponentClient<Database>();
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+
+    // URLのデバッグ情報をコンソールに出力
+    console.log(`Generated URL for ${bucket}/${path}:`, data.publicUrl);
+
+    return data.publicUrl;
+};

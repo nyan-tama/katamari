@@ -3,9 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Database } from '@/types/supabase';
-import { createClientSupabase } from '@/lib/supabase-client';
+import { createClientSupabase, getPublicUrl } from '@/lib/supabase-client';
 
 interface ModelUser {
     id: string;
@@ -16,23 +14,13 @@ interface ModelUser {
 interface Model {
     id: string;
     title: string;
-    description: string;
+    description: string | null;
+    file_url: string;
+    thumbnail_url: string | null;
     created_at: string;
-    user: ModelUser;
+    user_id: string;
+    user?: ModelUser;
 }
-
-// 仮のデータ（実際のアプリではSupabaseから取得します）
-const mockModelData: Model = {
-    id: '1',
-    title: 'かわいいクッキー型',
-    description: 'SNS映えするユニークなクッキーが作れる型枠です。3Dプリンターで出力して、お菓子作りを楽しみましょう。\n\n食品衛生面を考慮して、PLAなどの食品安全素材での出力をお勧めします。',
-    created_at: '2025-02-28',
-    user: {
-        id: 'user1',
-        name: 'カタワク公式',
-        avatar_url: null
-    }
-};
 
 export default function ModelDetailPage() {
     const params = useParams();
@@ -40,13 +28,38 @@ export default function ModelDetailPage() {
     const [model, setModel] = useState<Model | null>(null);
 
     useEffect(() => {
-        // 実際のアプリではここでSupabaseからモデルデータを取得します
         const fetchModel = async () => {
             try {
                 setLoading(true);
+                const supabase = createClientSupabase();
+                const modelId = params.id as string;
 
-                // モックデータを使用
-                setModel(mockModelData);
+                // モデルデータを取得
+                const { data: modelData, error: modelError } = await supabase
+                    .from('models')
+                    .select('*')
+                    .eq('id', modelId)
+                    .single();
+
+                if (modelError) throw modelError;
+                if (!modelData) {
+                    return;
+                }
+
+                // ユーザー情報を取得
+                const { data: userData, error: userError } = await supabase
+                    .from('users')
+                    .select('id, name, avatar_url')
+                    .eq('id', modelData.user_id)
+                    .single();
+
+                if (userError) throw userError;
+
+                // モデルとユーザー情報を結合
+                setModel({
+                    ...modelData,
+                    user: userData
+                });
             } catch (error) {
                 console.error('Error fetching model:', error);
             } finally {
@@ -54,7 +67,9 @@ export default function ModelDetailPage() {
             }
         };
 
-        fetchModel();
+        if (params.id) {
+            fetchModel();
+        }
     }, [params.id]);
 
     if (loading) {
@@ -96,30 +111,52 @@ export default function ModelDetailPage() {
                 <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
                     {/* モデルビューアー部分（実際のアプリでは3Dビューアーを実装） */}
                     <div className="aspect-video bg-gray-100 flex items-center justify-center">
-                        <p className="text-gray-400">
-                            3Dモデルビューアー（実装予定）
-                        </p>
+                        {model?.thumbnail_url ? (
+                            <>
+                                <img
+                                    src={getPublicUrl('model_thumbnails', model.thumbnail_url)}
+                                    alt={model.title}
+                                    className="object-contain w-full h-full"
+                                    onError={(e) => {
+                                        console.error(`サムネイル読み込みエラー: ${model.thumbnail_url}`);
+                                        e.currentTarget.src = '/no-image.png';
+                                    }}
+                                />
+                                <div className="absolute bottom-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1">
+                                    {model.thumbnail_url.split('/').pop()?.substring(0, 10)}...
+                                </div>
+                            </>
+                        ) : (
+                            <p className="text-gray-400">
+                                画像がありません
+                            </p>
+                        )}
                     </div>
 
                     {/* モデル情報 */}
                     <div className="p-6">
                         <div className="flex justify-between items-start mb-4">
-                            <h1 className="text-2xl font-bold text-gray-800">{model.title}</h1>
-                            <button className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-md transition-colors">
+                            <h1 className="text-2xl font-bold text-gray-800">{model?.title}</h1>
+                            <Link
+                                href={getPublicUrl('model_files', model?.file_url || '')}
+                                className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-md transition-colors"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
                                 ダウンロード
-                            </button>
+                            </Link>
                         </div>
 
                         <div className="flex items-center text-gray-600 text-sm mb-6">
-                            <span>投稿者: {model.user.name}</span>
+                            <span>投稿者: {model?.user?.name || '不明'}</span>
                             <span className="mx-2">•</span>
-                            <span>投稿日: {model.created_at}</span>
+                            <span>投稿日: {model?.created_at ? new Date(model.created_at).toLocaleDateString('ja-JP') : '不明'}</span>
                         </div>
 
                         <div className="border-t border-gray-100 pt-4">
                             <h2 className="font-semibold text-lg mb-2">説明</h2>
                             <div className="text-gray-700 whitespace-pre-line">
-                                {model.description}
+                                {model?.description || '説明はありません'}
                             </div>
                         </div>
                     </div>
