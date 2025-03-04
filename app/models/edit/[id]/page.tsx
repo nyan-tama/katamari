@@ -160,8 +160,23 @@ export default function EditModelPage() {
             setDeleting(true);
             const supabase = createClientSupabase();
 
+            // ストレージからモデルファイルを削除
+            const { error: fileDeleteError } = await supabase.storage
+                .from('model_files')
+                .remove([model.file_url]);
+
+            if (fileDeleteError) console.error('Error deleting model file:', fileDeleteError);
+
+            // サムネイルがある場合は削除
+            if (model.thumbnail_url) {
+                const { error: thumbnailDeleteError } = await supabase.storage
+                    .from('model_thumbnails')
+                    .remove([model.thumbnail_url]);
+
+                if (thumbnailDeleteError) console.error('Error deleting thumbnail:', thumbnailDeleteError);
+            }
+
             // データベースからモデルを削除
-            // ストレージのファイルはSupabaseのトリガーで自動削除されます
             const { error: deleteError } = await supabase
                 .from('models')
                 .delete()

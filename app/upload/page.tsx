@@ -95,28 +95,16 @@ export default function UploadPage() {
                 }
             }
 
-            // 公開URLを取得
-            const { data: modelFileData } = supabase.storage
-                .from('model_files')
-                .getPublicUrl(modelPath);
-
-            let thumbnailPublicUrl = null;
-            if (thumbnailPath) {
-                const { data: thumbnailData } = supabase.storage
-                    .from('model_thumbnails')
-                    .getPublicUrl(thumbnailPath);
-                thumbnailPublicUrl = thumbnailData.publicUrl;
-            }
-
-            // データベースに保存
+            // データベースに保存する際は相対パスを使用する
+            // 公開URLの取得はビュー時に行う
             const { error: insertError } = await supabase
                 .from('models')
                 .insert({
                     user_id: user.id,
                     title,
                     description: description || null,
-                    file_url: modelFileData.publicUrl,
-                    thumbnail_url: thumbnailPublicUrl
+                    file_url: modelPath, // 完全なURLではなく相対パスを保存
+                    thumbnail_url: thumbnailPath // 完全なURLではなく相対パスを保存
                 });
 
             if (insertError) {
