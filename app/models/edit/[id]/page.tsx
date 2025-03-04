@@ -90,18 +90,57 @@ export default function EditModelPage() {
             return;
         }
 
+        // モデルIDの検証
+        if (!model.id || typeof model.id !== 'string' || model.id.trim() === '') {
+            console.error('無効なモデルID:', model.id);
+            alert('無効なモデルIDです。ページを再読み込みしてお試しください。');
+            return;
+        }
+
         try {
             setSaving(true);
             const supabase = createClientSupabase();
+
+            // まず、モデルが存在するか確認
+            console.log('モデル存在確認を実行します。ID:', model.id);
+            const { data: existingModel, error: checkError } = await supabase
+                .from('models')
+                .select('id, title, thumbnail_url')
+                .eq('id', model.id)
+                .maybeSingle();
+
+            if (checkError) {
+                console.error('モデル確認エラー:', checkError);
+                throw new Error(`モデル確認中にエラーが発生しました: ${checkError.message}`);
+            }
+
+            if (!existingModel) {
+                console.error('モデルが存在しません。ID:', model.id);
+                // 認証情報をチェック
+                const { data: { session } } = await supabase.auth.getSession();
+                console.log('現在のユーザーID:', session?.user?.id);
+                console.log('モデルのユーザーID (メモリ上):', model.user_id);
+                throw new Error('モデルが見つかりません。削除されたか、アクセス権限がない可能性があります。');
+            }
+
+            console.log('モデルが見つかりました:', existingModel);
+
+            // サムネイルパスを取得
             let thumbnailPath = model.thumbnail_url;
+            console.log('現在のサムネイルパス:', thumbnailPath);
 
             // 新しいサムネイルがアップロードされた場合
             if (thumbnailFile) {
                 // 古いサムネイルがある場合は削除
-                if (model.thumbnail_url) {
-                    await supabase.storage
+                if (thumbnailPath) {
+                    console.log('古いサムネイルを削除します:', thumbnailPath);
+                    const { error: removeError } = await supabase.storage
                         .from('model_thumbnails')
-                        .remove([model.thumbnail_url]);
+                        .remove([thumbnailPath]);
+
+                    if (removeError) {
+                        console.error('古いサムネイル削除エラー:', removeError);
+                    }
                 }
 
                 // 新しいサムネイルをアップロード
@@ -119,23 +158,73 @@ export default function EditModelPage() {
                     });
 
                 if (thumbnailUploadError) throw thumbnailUploadError;
+            } else if (thumbnailPreview === null && existingModel.thumbnail_url) {
+                // サムネイルが削除された場合（プレビューがnullで、元のモデルにはサムネイルがあった）
+                console.log('サムネイルが削除されました。ストレージからも削除します:', existingModel.thumbnail_url);
+
+                // 重要: 先にストレージからファイルを削除し、その後でデータベースの参照を更新する
+                // これにより、データの整合性が保たれる（孤立ファイルの発生防止）
+                try {
+                    const { error: removeError } = await supabase.storage
+                        .from('model_thumbnails')
+                        .remove([existingModel.thumbnail_url]);
+
+                    if (removeError) {
+                        console.error('サムネイル削除エラー:', removeError);
+                        // エラーが発生しても処理を続行（ファイルが存在しない可能性もある）
+                    } else {
+                        console.log('ストレージからサムネイルを削除しました');
+                    }
+                } catch (storageError) {
+                    // ストレージエラーをキャッチしても処理を続行
+                    console.error('サムネイル削除中に例外が発生:', storageError);
+                }
+
+                // パスをnullに設定（データベース更新用）
+                thumbnailPath = null;
             }
 
+            // 更新するデータの準備
+            const updateData = {
+                title,
+                description: description || null,
+                thumbnail_url: thumbnailPath,
+                // 明示的に更新時刻を設定
+                updated_at: new Date().toISOString()
+            };
+
+            console.log('更新するデータ:', updateData);
+            console.log('モデルID:', model.id);
+
             // モデルデータを更新
-            const { error: updateError } = await supabase
+            const { data: updatedData, error: updateError, count } = await supabase
                 .from('models')
-                .update({
-                    title,
-                    description: description || null,
-                    thumbnail_url: thumbnailPath,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', model.id);
+                .update(updateData)
+                .eq('id', model.id)
+                .select();
 
-            if (updateError) throw updateError;
+            console.log('更新結果 - データ:', updatedData, '件数:', count, 'エラー:', updateError);
 
+            if (updateError) {
+                console.error('データ更新エラー:', updateError);
+                throw updateError;
+            }
+
+            if (!updatedData || updatedData.length === 0) {
+                console.error('更新対象のレコードが見つかりませんでした。モデルID:', model.id);
+                throw new Error('更新対象のモデルが見つかりませんでした');
+            }
+
+            console.log('更新成功！更新後のデータ:', updatedData);
+
+            // 成功メッセージを表示
             alert('モデル情報が更新されました');
-            router.push(`/models/${model.id}`);
+
+            // 更新後の画面遷移
+            // 画面遷移前に少し待機して更新が完了するのを待つ
+            setTimeout(() => {
+                router.push('/profile');
+            }, 500);
         } catch (error) {
             console.error('Error updating model:', error);
             let errorMessage = '不明なエラーが発生しました';
@@ -152,6 +241,13 @@ export default function EditModelPage() {
     const handleDeleteModel = async () => {
         if (!model) return;
 
+        // モデルIDの検証
+        if (!model.id || typeof model.id !== 'string' || model.id.trim() === '') {
+            console.error('無効なモデルID:', model.id);
+            alert('無効なモデルIDです。ページを再読み込みしてお試しください。');
+            return;
+        }
+
         if (!confirm('このモデルを削除してもよろしいですか？この操作は元に戻せません。')) {
             return;
         }
@@ -161,6 +257,8 @@ export default function EditModelPage() {
             const supabase = createClientSupabase();
 
             // ストレージからモデルファイルを削除
+            console.log('削除するモデルファイルパス:', model.file_url);
+
             const { error: fileDeleteError } = await supabase.storage
                 .from('model_files')
                 .remove([model.file_url]);
@@ -169,6 +267,8 @@ export default function EditModelPage() {
 
             // サムネイルがある場合は削除
             if (model.thumbnail_url) {
+                console.log('削除するサムネイルパス:', model.thumbnail_url);
+
                 const { error: thumbnailDeleteError } = await supabase.storage
                     .from('model_thumbnails')
                     .remove([model.thumbnail_url]);
@@ -177,15 +277,32 @@ export default function EditModelPage() {
             }
 
             // データベースからモデルを削除
-            const { error: deleteError } = await supabase
+            console.log('削除するモデルID:', model.id);
+            const { data: deleteData, error: deleteError } = await supabase
                 .from('models')
                 .delete()
-                .eq('id', model.id);
+                .eq('id', model.id)
+                .select();
 
-            if (deleteError) throw deleteError;
+            if (deleteError) {
+                console.error('モデル削除エラー:', deleteError);
+                throw deleteError;
+            }
 
+            if (!deleteData || deleteData.length === 0) {
+                console.error('削除対象のレコードが見つかりませんでした。モデルID:', model.id);
+                throw new Error('削除対象のモデルが見つかりませんでした');
+            }
+
+            console.log('削除成功！削除されたデータ:', deleteData);
+
+            // 成功メッセージを表示
             alert('モデルを削除しました');
-            router.push('/profile');
+
+            // 画面遷移前に少し待機して削除が完了するのを待つ
+            setTimeout(() => {
+                router.push('/profile');
+            }, 500);
         } catch (error) {
             console.error('Error deleting model:', error);
             let errorMessage = '不明なエラーが発生しました';
@@ -217,6 +334,8 @@ export default function EditModelPage() {
     const handleRemoveThumbnail = () => {
         setThumbnailFile(null);
         setThumbnailPreview(null);
+        // サムネイルが明示的に削除されたことをモデルに記録
+        setModel(prevModel => prevModel ? { ...prevModel, thumbnail_url: null } : null);
     };
 
     if (loading) {
@@ -336,7 +455,7 @@ export default function EditModelPage() {
                     <div className="mt-12 pt-6 border-t border-gray-200">
                         <h3 className="text-lg font-medium text-red-600">危険な操作</h3>
                         <p className="mt-1 text-sm text-gray-500">
-                            このモデルを削除すると、元に戻すことはできません。すべての関連データも削除されます。
+                            このモデルを削除すると、元に戻せません。すべての関連データも削除されます。
                         </p>
                         <button
                             onClick={handleDeleteModel}
