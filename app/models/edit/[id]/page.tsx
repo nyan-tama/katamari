@@ -256,28 +256,53 @@ export default function EditModelPage() {
             setDeleting(true);
             const supabase = createClientSupabase();
 
-            // ストレージからモデルファイルを削除
-            console.log('削除するモデルファイルパス:', model.file_url);
+            // 削除対象のデータを記録（バックアップ目的）
+            console.log('削除対象のモデル情報:', {
+                id: model.id,
+                title: model.title,
+                file_url: model.file_url,
+                thumbnail_url: model.thumbnail_url
+            });
 
-            const { error: fileDeleteError } = await supabase.storage
-                .from('model_files')
-                .remove([model.file_url]);
+            // ストレージ削除処理のためのラッパー関数（エラーハンドリング強化）
+            const deleteFromStorage = async (bucket: string, path: string | null) => {
+                if (!path) return { success: true };
 
-            if (fileDeleteError) console.error('Error deleting model file:', fileDeleteError);
+                console.log(`${bucket}から削除実行:`, path);
+                try {
+                    const { error } = await supabase.storage
+                        .from(bucket)
+                        .remove([path]);
 
-            // サムネイルがある場合は削除
+                    if (error) {
+                        console.error(`${bucket}の削除エラー:`, error);
+                        return { success: false, error };
+                    }
+
+                    console.log(`${bucket}から正常に削除されました:`, path);
+                    return { success: true };
+                } catch (e) {
+                    console.error(`${bucket}の削除例外:`, e);
+                    return { success: false, error: e };
+                }
+            };
+
+            // ストレージからのファイル削除を先に実行
+            const fileDeleteResult = await deleteFromStorage('model_files', model.file_url);
+            if (!fileDeleteResult.success) {
+                console.warn('モデルファイルの削除に失敗しましたが、処理を続行します');
+            }
+
+            // サムネイルの削除
             if (model.thumbnail_url) {
-                console.log('削除するサムネイルパス:', model.thumbnail_url);
-
-                const { error: thumbnailDeleteError } = await supabase.storage
-                    .from('model_thumbnails')
-                    .remove([model.thumbnail_url]);
-
-                if (thumbnailDeleteError) console.error('Error deleting thumbnail:', thumbnailDeleteError);
+                const thumbnailDeleteResult = await deleteFromStorage('model_thumbnails', model.thumbnail_url);
+                if (!thumbnailDeleteResult.success) {
+                    console.warn('サムネイルの削除に失敗しましたが、処理を続行します');
+                }
             }
 
             // データベースからモデルを削除
-            console.log('削除するモデルID:', model.id);
+            console.log('データベースからモデルを削除します。ID:', model.id);
             const { data: deleteData, error: deleteError } = await supabase
                 .from('models')
                 .delete()
@@ -286,7 +311,7 @@ export default function EditModelPage() {
 
             if (deleteError) {
                 console.error('モデル削除エラー:', deleteError);
-                throw deleteError;
+                throw new Error(`データベースからのモデル削除に失敗しました: ${deleteError.message}`);
             }
 
             if (!deleteData || deleteData.length === 0) {

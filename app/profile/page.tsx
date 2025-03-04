@@ -57,50 +57,6 @@ export default function ProfilePage() {
         getUser();
     }, [router]);
 
-    const handleDeleteModel = async (modelId: string, fileUrl: string, thumbnailUrl?: string) => {
-        if (!confirm('このモデルを削除してもよろしいですか？この操作は元に戻せません。')) {
-            return;
-        }
-
-        try {
-            setLoading(true);
-            const supabase = createClientSupabase();
-
-            // データベースからモデルを削除
-            const { error: deleteError } = await supabase
-                .from('models')
-                .delete()
-                .eq('id', modelId);
-
-            if (deleteError) throw deleteError;
-
-            // ストレージからモデルファイルを削除
-            const { error: fileDeleteError } = await supabase.storage
-                .from('model_files')
-                .remove([fileUrl]);
-
-            if (fileDeleteError) console.error('Error deleting model file:', fileDeleteError);
-
-            // サムネイルがある場合は削除
-            if (thumbnailUrl) {
-                const { error: thumbnailDeleteError } = await supabase.storage
-                    .from('model_thumbnails')
-                    .remove([thumbnailUrl]);
-
-                if (thumbnailDeleteError) console.error('Error deleting thumbnail:', thumbnailDeleteError);
-            }
-
-            // 成功したら画面を更新
-            setUserModels(userModels.filter(model => model.id !== modelId));
-            alert('モデルを削除しました');
-        } catch (error) {
-            console.error('Error deleting model:', error);
-            alert('モデル削除中にエラーが発生しました');
-        } finally {
-            setLoading(false);
-        }
-    };
-
     if (loading) {
         return (
             <div className="container mx-auto px-4 py-8">
@@ -189,12 +145,6 @@ export default function ProfilePage() {
                                             >
                                                 編集
                                             </Link>
-                                            <button
-                                                onClick={() => handleDeleteModel(model.id, model.file_url, model.thumbnail_url)}
-                                                className="text-sm text-red-600 hover:text-red-800"
-                                            >
-                                                削除
-                                            </button>
                                         </div>
                                     </div>
                                 </div>
