@@ -28,7 +28,7 @@ interface UserProfile {
 // const getAvatarUrl = (avatarPath: string | null): string => {
 //     if (!avatarPath) return '';
 
-//     // 外部URL（http/https）の場合はそのまま返す
+//     // 外部URL（http/
 //     if (avatarPath.startsWith('http')) {
 //         return avatarPath;
 //     }
