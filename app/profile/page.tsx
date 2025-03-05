@@ -23,18 +23,19 @@ interface UserProfile {
     avatar_url: string | null;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 // アバターURLを適切に処理する関数（非推奨 - 新しい実装ではImageコンポーネントを使用）
-const getAvatarUrl = (avatarPath: string | null): string => {
-    if (!avatarPath) return '';
+// const getAvatarUrl = (avatarPath: string | null): string => {
+//     if (!avatarPath) return '';
 
-    // 外部URL（http/https）の場合はそのまま返す
-    if (avatarPath.startsWith('http')) {
-        return avatarPath;
-    }
+//     // 外部URL（http/https）の場合はそのまま返す
+//     if (avatarPath.startsWith('http')) {
+//         return avatarPath;
+//     }
 
-    // ローカルファイルの場合はSupabaseのStorageから取得
-    return getPublicUrl('avatars', avatarPath);
-};
+//     // ローカルファイルの場合はSupabaseのStorageから取得
+//     return getPublicUrl('avatars', avatarPath);
+// };
 
 export default function ProfilePage() {
     const [user, setUser] = useState<User | null>(null);
