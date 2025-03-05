@@ -1,33 +1,69 @@
 import Link from "next/link";
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
+import Image from "next/image";
+import { formatDistanceToNow } from 'date-fns';
+import { ja } from 'date-fns/locale';
 
-export default function Home() {
-  // 仮のモデルデータ
-  const featuredModels = [
-    {
-      id: "1",
-      title: "かわいいクッキー型",
-      imageUrl: "/images/sample1.jpg",
-      creator: "カタワク公式"
-    },
-    {
-      id: "2",
-      title: "チョコレート型セット",
-      imageUrl: "/images/sample2.jpg",
-      creator: "クリエイターA"
-    },
-    {
-      id: "3",
-      title: "ユニークな手作りケーキ型",
-      imageUrl: "/images/sample3.jpg",
-      creator: "クリエイターB"
-    },
-    {
-      id: "4",
-      title: "季節の和菓子型",
-      imageUrl: "/images/sample4.jpg",
-      creator: "クリエイターC"
-    }
-  ];
+// 型定義
+interface Model {
+  id: string;
+  title: string;
+  description?: string;
+  file_url: string;
+  thumbnail_url?: string;
+  created_at: string;
+  user_id: string;
+}
+
+interface User {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+}
+
+interface ModelWithUser extends Model {
+  users: User;
+}
+
+// 日付フォーマットヘルパー関数
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  return formatDistanceToNow(date, { addSuffix: true, locale: ja });
+};
+
+// Supabaseストレージからの公開URL取得
+const getPublicUrl = (bucket: string, path: string | null): string => {
+  if (!path) return '';
+
+  // パスが既に完全なURLの場合はそのまま返す
+  if (path.startsWith('http')) {
+    return path;
+  }
+
+  // テスト用データの場合はDhvkmイ側を優先する
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dhvkmwrudleimrzppamd.supabase.co';
+
+  // キャッシュをバイパスするためのタイムスタンプパラメータを削除
+  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
+};
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export default async function Home() {
+  const supabase = createServerComponentClient({ cookies });
+
+  // 最新20件のモデルを取得
+  const { data: latestModels, error } = await supabase
+    .from('models')
+    .select(`*, users(id, name, avatar_url)`)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) {
+    console.error("モデル取得エラー:", error);
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -38,8 +74,8 @@ export default function Home() {
             かわいい・おもしろい3Dモデルをみんなで共有しよう
           </h1>
           <p className="text-lg md:text-xl text-gray-600 mb-8">
-            「カタワク」は、食品関連の型枠（クッキー型、チョコレート型など）に特化した<br className="hidden md:block" />
-            感性志向型3Dモデル共有プラットフォームです。
+            「カタワク」は、あなたの可愛い・面白いをカタチにする<br className="hidden md:block" />
+            3Dモデルサイトです
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -58,37 +94,62 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 特集モデルセクション */}
+      {/* 最新のモデルセクション */}
       <section className="mb-16">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">人気の型枠モデル</h2>
+          <h2 className="text-2xl font-bold text-gray-800">新着モデル</h2>
           <Link href="/models" className="text-pink-500 hover:text-pink-600">
             すべて見る →
           </Link>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredModels.map((model) => (
+          {latestModels && latestModels.map((model: ModelWithUser) => (
             <Link key={model.id} href={`/models/${model.id}`} className="group">
               <div className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
-                <div className="aspect-square relative bg-gray-100">
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                    準備中...
-                  </div>
-                  {/* <Image 
-                    src={model.imageUrl} 
-                    alt={model.title} 
-                    fill 
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                  /> */}
+                <div className="w-full h-48 bg-gray-100 relative overflow-hidden">
+                  {model.thumbnail_url ? (
+                    <Image
+                      src={getPublicUrl('model_thumbnails', model.thumbnail_url)}
+                      alt={model.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      className="object-cover"
+                      priority={true}
+                      unoptimized={true}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                      <span className="text-4xl">📷</span>
+                    </div>
+                  )}
                 </div>
                 <div className="p-4">
-                  <h3 className="font-medium text-gray-800 mb-1 group-hover:text-pink-500 transition-colors">
+                  <h3 className="font-medium text-gray-800 mb-1 group-hover:text-pink-500 transition-colors truncate">
                     {model.title}
                   </h3>
-                  <p className="text-gray-500 text-sm">
-                    作成者: {model.creator}
-                  </p>
+                  <div className="flex items-center mt-2">
+                    <div className="w-6 h-6 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
+                      {model.users.avatar_url ? (
+                        <Image
+                          src={model.users.avatar_url.startsWith('http')
+                            ? model.users.avatar_url
+                            : getPublicUrl('avatars', model.users.avatar_url)}
+                          alt={model.users.name}
+                          width={24}
+                          height={24}
+                          className="object-cover"
+                          unoptimized={true}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">
+                          {model.users.name?.charAt(0).toUpperCase() || 'U'}
+                        </div>
+                      )}
+                    </div>
+                    <span className="ml-2 text-sm text-gray-600">{model.users.name}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">{formatDate(model.created_at)}</p>
                 </div>
               </div>
             </Link>
@@ -96,36 +157,36 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 特徴セクション */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center mb-4">
-            <span className="text-pink-500 text-2xl">✨</span>
+      {/* bambooサイトへのリンクセクション */}
+      <section className="mb-16">
+        <div className="bg-gradient-to-r from-green-50 via-blue-50 to-pink-50 p-8 rounded-xl shadow-md border-2 border-pink-300">
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-blue-600 mb-3">✨ Bambu Labの3Dプリンターで作ろう ✨</h2>
+              <p className="text-gray-600 mb-6 text-lg">
+                カタワクのモデルは、高品質な3Dプリンターで出力するとさらに美しく仕上がります。Bambu Labの製品なら、誰でも簡単に高精度な3D印刷が可能です♪
+              </p>
+              <a
+                href="https://jp.store.bambulab.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white px-6 py-3 rounded-lg font-medium inline-block transition-colors shadow-md transform hover:scale-105 transition-transform duration-300"
+              >
+                🛒 Bambu Lab公式ストアを見る
+              </a>
+            </div>
+            <div className="flex items-center justify-center">
+              <div className="w-44 h-44 rounded-full overflow-hidden relative bg-white border-4 border-green-200 shadow-lg transform hover:rotate-3 transition-transform duration-300" style={{ boxShadow: '0 0 20px rgba(110, 231, 183, 0.5)' }}>
+                <Image
+                  src="https://jp.store.bambulab.com/cdn/shop/products/A1-2_1400x.png?v=1703150110"
+                  alt="Bambu Lab 3Dプリンター"
+                  fill
+                  className="object-contain p-2"
+                  unoptimized={true}
+                />
+              </div>
+            </div>
           </div>
-          <h3 className="text-xl font-semibold mb-2">かわいさ重視</h3>
-          <p className="text-gray-600">
-            実用性だけでなく、見た目の「かわいさ」「おもしろさ」にこだわったモデルを共有できます。
-          </p>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center mb-4">
-            <span className="text-pink-500 text-2xl">🍪</span>
-          </div>
-          <h3 className="text-xl font-semibold mb-2">食品関連に特化</h3>
-          <p className="text-gray-600">
-            クッキー型やチョコレート型など、食べ物に関連する型枠のモデルが充実しています。
-          </p>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center mb-4">
-            <span className="text-pink-500 text-2xl">🇯🇵</span>
-          </div>
-          <h3 className="text-xl font-semibold mb-2">日本語ネイティブ</h3>
-          <p className="text-gray-600">
-            日本人ユーザーのための、使いやすい日本語インターフェースを提供しています。
-          </p>
         </div>
       </section>
     </div>

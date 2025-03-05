@@ -26,12 +26,12 @@ interface UserProfile {
 // アバターURLを適切に処理する関数（非推奨 - 新しい実装ではImageコンポーネントを使用）
 const getAvatarUrl = (avatarPath: string | null): string => {
     if (!avatarPath) return '';
-    
+
     // 外部URL（http/https）の場合はそのまま返す
     if (avatarPath.startsWith('http')) {
         return avatarPath;
     }
-    
+
     // ローカルファイルの場合はSupabaseのStorageから取得
     return getPublicUrl('avatars', avatarPath);
 };
@@ -125,7 +125,7 @@ export default function ProfilePage() {
         }
 
         setAvatarFile(file);
-        
+
         // プレビュー用URL生成
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -136,11 +136,11 @@ export default function ProfilePage() {
 
     const handleSaveProfile = async () => {
         if (!user || !profile) return;
-        
+
         try {
             setIsSaving(true);
             const supabase = createClientSupabase();
-            
+
             let avatarUrl = profile.avatar_url;
 
             // アバター画像がアップロードされた場合
@@ -150,20 +150,20 @@ export default function ProfilePage() {
                     console.log('Removing old avatar from storage:', profile.avatar_url);
                     await supabase.storage.from('avatars').remove([profile.avatar_url]);
                 }
-                
+
                 // 新しいアバター画像をアップロード
                 const filePath = `${user.id}/${Date.now()}_${avatarFile.name}`;
                 const { error: uploadError } = await supabase.storage
                     .from('avatars')
                     .upload(filePath, avatarFile);
-                
+
                 if (uploadError) {
                     throw uploadError;
                 }
-                
+
                 avatarUrl = filePath;
             }
-            
+
             // プロフィール情報を更新
             const { error: updateError } = await supabase
                 .from('users')
@@ -173,11 +173,11 @@ export default function ProfilePage() {
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', user.id);
-            
+
             if (updateError) {
                 throw updateError;
             }
-            
+
             // 成功したら編集モードを終了し、プロフィール情報を更新
             setProfile({
                 ...profile,
@@ -186,7 +186,7 @@ export default function ProfilePage() {
             });
             setIsEditing(false);
             alert('プロフィールを更新しました');
-            
+
         } catch (error) {
             console.error('プロフィール更新エラー:', error);
             alert('プロフィールの更新に失敗しました');
@@ -197,15 +197,15 @@ export default function ProfilePage() {
 
     const handleDeleteAccount = async () => {
         if (!user) return;
-        
+
         if (!confirm('本当にアカウントを削除しますか？この操作は取り消せません。')) {
             return;
         }
-        
+
         try {
             setIsSaving(true);
             const supabase = createClientSupabase();
-            
+
             // ユーザーのモデルファイルとサムネイルを削除
             for (const model of userModels) {
                 if (model.file_url) {
@@ -215,24 +215,24 @@ export default function ProfilePage() {
                     await supabase.storage.from('model_thumbnails').remove([model.thumbnail_url]);
                 }
             }
-            
+
             // アバター画像があれば削除（Supabaseストレージの場合のみ）
             if (profile?.avatar_url && !profile.avatar_url.startsWith('http')) {
                 console.log('Removing avatar from storage on account delete:', profile.avatar_url);
                 await supabase.storage.from('avatars').remove([profile.avatar_url]);
             }
-            
+
             // Supabase Authからユーザーを削除
             const { error } = await supabase.auth.admin.deleteUser(user.id);
             if (error) throw error;
-            
+
             // ログアウト処理
             await supabase.auth.signOut();
-            
+
             // ホームページにリダイレクト
             router.push('/');
             alert('アカウントが削除されました');
-            
+
         } catch (error) {
             console.error('アカウント削除エラー:', error);
             alert('アカウントの削除に失敗しました');
@@ -269,7 +269,7 @@ export default function ProfilePage() {
                                     アカウント削除
                                 </button>
                             </div>
-                            
+
                             <div className="w-full md:flex md:gap-6">
                                 {/* アバター編集 - スマホでは中央揃え、PCでは左揃え */}
                                 <div className="flex flex-col items-center md:items-start md:w-1/3 mb-6 md:mb-0">
@@ -278,7 +278,7 @@ export default function ProfilePage() {
                                             <img src={avatarPreview} alt="Avatar Preview" className="w-full h-full object-cover" />
                                         ) : profile?.avatar_url ? (
                                             profile.avatar_url.startsWith('http') ? (
-                                                <Image 
+                                                <Image
                                                     src={profile.avatar_url}
                                                     alt="Current Avatar"
                                                     width={96}
@@ -294,9 +294,9 @@ export default function ProfilePage() {
                                                     }}
                                                 />
                                             ) : (
-                                                <img 
-                                                    src={getPublicUrl('avatars', profile.avatar_url)} 
-                                                    alt="Current Avatar" 
+                                                <img
+                                                    src={getPublicUrl('avatars', profile.avatar_url)}
+                                                    alt="Current Avatar"
                                                     className="w-full h-full object-cover"
                                                     onError={(e) => {
                                                         console.error('Avatar image failed to load in edit mode:', profile.avatar_url);
@@ -323,7 +323,7 @@ export default function ProfilePage() {
                                         className="w-full max-w-xs text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100"
                                     />
                                 </div>
-                                
+
                                 {/* 名前編集とボタン - PCでは右側に配置 */}
                                 <div className="w-full md:w-2/3">
                                     <div className="mb-6">
@@ -339,7 +339,7 @@ export default function ProfilePage() {
                                             required
                                         />
                                     </div>
-                                    
+
                                     {/* 操作ボタン - スマホでは中央揃え、PCでは左揃え */}
                                     <div className="flex flex-col gap-4 mt-6">
                                         <div className="flex gap-2 justify-center md:justify-start">
@@ -368,7 +368,7 @@ export default function ProfilePage() {
                                 {profile?.avatar_url ? (
                                     profile.avatar_url.startsWith('http') ? (
                                         // 外部URL（Google など）の場合はImageコンポーネント
-                                        <Image 
+                                        <Image
                                             src={profile.avatar_url}
                                             alt={profile.name}
                                             width={64}
@@ -387,7 +387,7 @@ export default function ProfilePage() {
                                         />
                                     ) : (
                                         // Supabaseストレージの場合は通常のimgタグ
-                                        <img 
+                                        <img
                                             src={getPublicUrl('avatars', profile.avatar_url)}
                                             alt={profile.name}
                                             className="w-full h-full object-cover"
@@ -410,7 +410,7 @@ export default function ProfilePage() {
                                     <h1 className="text-xl font-bold text-gray-800 mr-2">
                                         {profile?.name || user?.email?.split('@')[0] || 'ユーザー'}
                                     </h1>
-                                    <button 
+                                    <button
                                         onClick={handleEditToggle}
                                         className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
                                         aria-label="ユーザー情報を編集"
