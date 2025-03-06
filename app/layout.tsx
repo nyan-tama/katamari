@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
+import Script from 'next/script';
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -16,8 +17,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "カタワク - かわいい・おもしろい3Dモデル共有プラットフォーム",
-  description: "3Dプリンターの活用価値を「実用性」から「かわいさ」「おもしろさ」にシフトした日本初の感性志向型3Dモデル共有プラットフォーム",
+  title: "カタマリ - かわいい・おもしろい・役に立つ！3Dモデル共有プラットフォーム",
+  description: "「3Dプリントで、共有する喜び」をコンセプトに、かわいい・おもしろい・役立つ3Dモデルを共有できる日本発のプラットフォーム。SNSで映えるユニークな3Dデータが見つかります。",
 };
 
 export default function RootLayout({
@@ -27,6 +28,23 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
+      <head>
+        {/* Search Console 確認タグ */}
+        <meta name="google-site-verification" content="提供されたコード" />
+        {/* Google Analytics */}
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=G-9BY7PNG4JT`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-9BY7PNG4JT');
+          `}
+        </Script>
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}
       >
