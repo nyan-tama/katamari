@@ -189,6 +189,18 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      <section className="py-12">
+        <div className="container mx-auto px-4">
+          <h1 className="text-4xl font-bold text-center mb-6">
+            3Dプリントで、共有する喜び
+          </h1>
+          <p className="text-xl text-center text-gray-600 mb-12 max-w-3xl mx-auto">
+            カタマリは、かわいい・おもしろい・役立つ3Dモデルを共有できるプラットフォーム。
+            あなたのアイデアを形にして、みんなで楽しみましょう。
+          </p>
+        </div>
+      </section>
     </div>
   );
 }

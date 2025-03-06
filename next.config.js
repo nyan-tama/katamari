@@ -5,7 +5,8 @@ const nextConfig = {
             'nextjs.org',
             'oshpdiqwxbryvcmhonts.supabase.co',
             'dhvkmwrudleimrzppamd.supabase.co',
-            'jp.store.bambulab.com'
+            'jp.store.bambulab.com',
+            'katamari.jp'
         ],
         remotePatterns: [
             {

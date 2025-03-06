@@ -27,8 +27,8 @@ export default function Footer() {
                             <h4 className="font-semibold mb-2">連絡先</h4>
                             <ul className="space-y-1">
                                 <li>
-                                    <a href="mailto:info@katawaku.jp" className="text-gray-600 hover:text-pink-500">
-                                        info@katawaku.jp
+                                    <a href="mailto:info@katamari.jp" className="text-gray-600 hover:text-pink-500">
+                                        info@katamari.jp
                                     </a>
                                 </li>
                             </ul>
@@ -37,8 +37,8 @@ export default function Footer() {
                 </div>
 
                 <div className="border-t border-gray-200 mt-6 pt-6 text-center">
-                    <p className="text-gray-500 text-sm">
-                        &copy; {new Date().getFullYear()} カタワク All rights reserved.
+                    <p className="text-sm text-gray-500">
+                        © {new Date().getFullYear()} カタマリ - 3Dプリントで、共有する喜び
                     </p>
                 </div>
             </div>

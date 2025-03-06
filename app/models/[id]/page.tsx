@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClientSupabase, getPublicUrl } from '@/lib/supabase-client';
+import { Metadata } from 'next';
 
 interface ModelUser {
     id: string;
@@ -178,4 +179,24 @@ export default function ModelDetailPage() {
             </div>
         </div>
     );
+}
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+    const model = await getModelById(params.id);
+
+    return {
+        // ...他のメタデータ
+        openGraph: {
+            title: model.title,
+            description: model.description,
+            url: `${process.env.NEXT_PUBLIC_SITE_URL}/models/${params.id}`,
+            images: [
+                {
+                    url: model.thumbnail_url,
+                    width: 1200,
+                    height: 630,
+                },
+            ],
+        },
+    }
 }

@@ -41,8 +41,9 @@ export default function Header() {
     return (
         <header className="bg-white shadow-md">
             <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-                <Link href="/" className="text-2xl font-bold text-pink-500">
-                    カタワク
+                <Link href="/" className="text-xl font-bold text-gray-900 flex items-center">
+                    <span className="mr-2">🧩</span>
+                    カタマリ
                 </Link>
 
                 <nav className="flex items-center gap-6">
