@@ -22,20 +22,25 @@
 | エンドポイント | メソッド | 説明 | 認証 | 実装状況 |
 | --- | --- | --- | --- | --- |
 | `/api/auth/session` | GET | ユーザーセッション情報の取得 | 任意 | ✅ 実装済み |
-| `/api/models` | GET | モデル一覧の取得 | 不要 | ✅ 実装済み |
-| `/api/models/[id]` | GET | 特定モデルの詳細情報取得 | 不要 | ✅ 実装済み |
-| `/api/models` | POST | 新規モデルの作成 | 必須 | ✅ 実装済み |
-| `/api/models/[id]` | PUT | モデル情報の更新 | 必須 | ✅ 実装済み |
-| `/api/models/[id]` | DELETE | モデルの削除 | 必須 | ✅ 実装済み |
-| `/api/models/user/[userId]` | GET | 特定ユーザーのモデル一覧取得 | 不要 | ✅ 実装済み |
+| `/api/articles` | GET | 記事一覧の取得 | 不要 | ✅ 実装済み |
+| `/api/articles/[id]` | GET | 特定記事の詳細情報取得 | 条件付き | ✅ 実装済み |
+| `/api/articles` | POST | 新規記事の作成 | 必須 | ✅ 実装済み |
+| `/api/articles/[id]` | PUT | 記事情報の更新 | 必須 | ✅ 実装済み |
+| `/api/articles/[id]` | DELETE | 記事の削除 | 必須 | ✅ 実装済み |
+| `/api/articles/user/[userId]` | GET | 特定ユーザーの記事一覧取得 | 条件付き | ✅ 実装済み |
 | `/api/storage/upload` | POST | ファイルのアップロード | 必須 | ✅ 実装済み |
+| `/api/media/upload` | POST | 記事用メディアのアップロード | 必須 | ❌ 実装予定 |
+| `/api/files/upload` | POST | 記事添付ファイルのアップロード | 必須 | ❌ 実装予定 |
+| `/api/preview/3d` | POST | 3Dモデルのプレビュー生成 | 必須 | ❌ 実装予定 |
 | `/api/search` | GET | モデル検索 | 不要 | ❌ フェーズ2で実装予定 |
-| `/api/favorites/[modelId]` | POST | モデルへのお気に入り登録/解除 | 必須 | ❌ フェーズ2で実装予定 |
-| `/api/favorites/[modelId]` | GET | お気に入り状態の確認 | 必須 | ❌ フェーズ2で実装予定 |
-| `/api/shares` | POST | モデル共有情報の記録 | 必須 | ❌ フェーズ2で実装予定 |
+| `/api/favorites/[articleId]` | POST | 記事へのお気に入り登録/解除 | 必須 | ❌ フェーズ2で実装予定 |
+| `/api/favorites/[articleId]` | GET | お気に入り状態の確認 | 必須 | ❌ フェーズ2で実装予定 |
+| `/api/shares` | POST | 記事共有情報の記録 | 必須 | ❌ フェーズ2で実装予定 |
+| `/api/stats/view/[articleId]` | POST | 記事閲覧数の記録 | 不要 | ❌ フェーズ2で実装予定 |
+| `/api/stats/download/[articleId]` | POST | ファイルダウンロード数の記録 | 不要 | ❌ フェーズ2で実装予定 |
 | `/api/tags` | GET | 人気タグ一覧の取得 | 不要 | ❌ フェーズ2で実装予定 |
-| `/api/tags/[tagName]/models` | GET | 特定タグに関連するモデル取得 | 不要 | ❌ フェーズ2で実装予定 |
-| `/api/models/[id]/tags` | POST | モデルへのタグ追加 | 必須 | ❌ フェーズ2で実装予定 |
+| `/api/tags/[tagName]/articles` | GET | 特定タグに関連する記事取得 | 不要 | ❌ フェーズ2で実装予定 |
+| `/api/articles/[id]/tags` | POST | 記事へのタグ追加 | 必須 | ❌ フェーズ2で実装予定 |
 
 ## 2. Supabase APIの利用
 
@@ -403,44 +408,44 @@ export async function addTagsToModel(
 
 ## 3. Next.js API Routes
 
-### 3.1 モデルAPIルート
+### 3.1 ユーザーセッション取得API
 
 ```typescript
-// app/api/models/route.ts
-import { createServerClient } from '@supabase/auth-helpers-nextjs';
+// app/api/auth/session/route.ts
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+
+export async function GET() {
+  const supabase = createRouteHandlerClient({ cookies });
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  return NextResponse.json({ session });
+}
+```
+
+### 3.2 記事一覧取得API
+
+```typescript
+// app/api/articles/route.ts
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const limit = parseInt(searchParams.get('limit') || '20', 10);
-  const page = parseInt(searchParams.get('page') || '1', 10);
+  const limit = searchParams.get('limit') || '10';
+  const offset = searchParams.get('offset') || '0';
   
-  const cookieStore = cookies();
-  const supabase = createServerClient({
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-    },
-  });
-  
-  const from = (page - 1) * limit;
-  const to = from + limit - 1;
+  const supabase = createRouteHandlerClient({ cookies });
   
   const { data, error } = await supabase
-    .from('models')
-    .select(`
-      *,
-      users:user_id (
-        name,
-        avatar_url
-      )
-    `)
+    .from('articles')
+    .select('*, users!author_id(name, avatar_url)')
+    .eq('status', 'published')
     .order('created_at', { ascending: false })
-    .range(from, to);
+    .limit(parseInt(limit))
+    .offset(parseInt(offset));
   
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -450,504 +455,189 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const cookieStore = cookies();
-  const supabase = createServerClient({
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-    },
-  });
-  
-  // セッションの確認
+  const supabase = createRouteHandlerClient({ cookies });
   const { data: { session } } = await supabase.auth.getSession();
+  
   if (!session) {
-    return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   
-  try {
-    const body = await request.json();
-    const userId = session.user.id;
-    
-    // 必要なフィールドの検証
-    if (!body.title || !body.file_url) {
-      return NextResponse.json({ error: '必須フィールドが不足しています' }, { status: 400 });
-    }
-    
-    // モデルの作成
-    const { data, error } = await supabase
-      .from('models')
-      .insert({
-        user_id: userId,
-        title: body.title,
-        description: body.description || '',
-        file_url: body.file_url,
-        thumbnail_url: body.thumbnail_url || null,
-      })
-      .select();
-    
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-    
-    return NextResponse.json({ data: data[0] });
-  } catch (error: any) {
+  const { title, content, hero_image, status = 'draft' } = await request.json();
+  
+  const { data, error } = await supabase
+    .from('articles')
+    .insert([
+      { 
+        author_id: session.user.id,
+        title,
+        content,
+        hero_image,
+        status
+      }
+    ])
+    .select()
+    .single();
+  
+  if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  
+  return NextResponse.json({ data });
 }
 ```
 
-### 3.2 ファイルアップロードAPIルート
+### 3.3 記事用メディアアップロードAPI
 
 ```typescript
-// app/api/storage/upload/route.ts
-import { createServerClient } from '@supabase/auth-helpers-nextjs';
+// app/api/media/upload/route.ts
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: Request) {
-  const cookieStore = cookies();
-  const supabase = createServerClient({
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-    },
-  });
-  
-  // セッションの確認
+  const supabase = createRouteHandlerClient({ cookies });
   const { data: { session } } = await supabase.auth.getSession();
+  
   if (!session) {
-    return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const bucketName = formData.get('bucket') as string;
+    const article_id = formData.get('article_id') as string;
+    const media_type = formData.get('media_type') as string;
+    const alt_text = formData.get('alt_text') as string;
     
-    if (!file || !bucketName) {
-      return NextResponse.json({ error: '必須パラメータが不足しています' }, { status: 400 });
+    if (!file) {
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
     
-    // 許可されているバケット名かを確認
-    if (!['model_files', 'model_thumbnails', 'avatars'].includes(bucketName)) {
-      return NextResponse.json({ error: '無効なバケット名です' }, { status: 400 });
-    }
+    // ファイル名を生成（ユニークにするためにタイムスタンプとUUIDを使用）
+    const timestamp = Date.now();
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${session.user.id}/${article_id}/${timestamp}_${crypto.randomUUID()}.${fileExt}`;
     
-    // ファイルサイズの検証
-    const MAX_SIZES = {
-      'model_files': 100 * 1024 * 1024, // 100MB
-      'model_thumbnails': 2 * 1024 * 1024, // 2MB
-      'avatars': 5 * 1024 * 1024 // 5MB
-    };
-    
-    if (file.size > MAX_SIZES[bucketName]) {
-      return NextResponse.json({ 
-        error: `ファイルサイズが大きすぎます。最大サイズ: ${MAX_SIZES[bucketName] / (1024 * 1024)}MB` 
-      }, { status: 400 });
-    }
-    
-    // ファイル形式の検証
-    const ALLOWED_FORMATS = {
-      'model_files': ['glb', 'gltf', 'obj', 'fbx', 'stl'],
-      'model_thumbnails': ['jpg', 'jpeg', 'png', 'webp'],
-      'avatars': ['jpg', 'jpeg', 'png', 'webp']
-    };
-    
-    const fileExt = file.name.split('.').pop()?.toLowerCase();
-    if (!fileExt || !ALLOWED_FORMATS[bucketName].includes(fileExt)) {
-      return NextResponse.json({ 
-        error: `このファイル形式はサポートされていません。許可される形式: ${ALLOWED_FORMATS[bucketName].join(', ')}` 
-      }, { status: 400 });
-    }
-    
-    // ファイル名の生成
-    const userId = session.user.id;
-    const fileName = `${userId}/${Date.now()}_${uuidv4()}.${fileExt}`;
-    
-    // アップロード
-    const { data, error } = await supabase.storage
-      .from(bucketName)
+    // Supabaseストレージにアップロード
+    const { data: storageData, error: storageError } = await supabase
+      .storage
+      .from('media')
       .upload(fileName, file, {
         cacheControl: '3600',
-        upsert: false,
+        contentType: file.type,
       });
+    
+    if (storageError) {
+      return NextResponse.json({ error: storageError.message }, { status: 500 });
+    }
+    
+    // 公開URLを取得
+    const { data: urlData } = await supabase
+      .storage
+      .from('media')
+      .getPublicUrl(fileName);
+    
+    // article_mediaテーブルに登録
+    const { data, error } = await supabase
+      .from('article_media')
+      .insert([
+        {
+          article_id,
+          media_type,
+          url: urlData.publicUrl,
+          alt_text,
+        }
+      ])
+      .select()
+      .single();
     
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     
-    // 公開URLの取得
-    const { data: { publicUrl } } = supabase.storage
-      .from(bucketName)
-      .getPublicUrl(data.path);
-    
-    return NextResponse.json({ url: publicUrl });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ data });
+  } catch (error) {
+    console.error('Error uploading media:', error);
+    return NextResponse.json({ error: 'Failed to upload media' }, { status: 500 });
   }
 }
 ```
 
-### 3.3 フェーズ2で追加予定のAPI Routes
-
-#### 3.3.1 お気に入りAPI
+### 3.4 ファイルアップロードAPI
 
 ```typescript
-// app/api/favorites/[modelId]/route.ts
-import { createServerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-
-// お気に入り状態の取得
-export async function GET(
-  request: Request,
-  { params }: { params: { modelId: string } }
-) {
-  const cookieStore = cookies();
-  const supabase = createServerClient({
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-    },
-  });
-  
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    return NextResponse.json({ favorited: false });
-  }
-  
-  const { data } = await supabase
-    .from('favorites')
-    .select('id')
-    .eq('user_id', session.user.id)
-    .eq('model_id', params.modelId)
-    .single();
-  
-  return NextResponse.json({ favorited: !!data });
-}
-
-// お気に入りの切り替え
-export async function POST(
-  request: Request,
-  { params }: { params: { modelId: string } }
-) {
-  const cookieStore = cookies();
-  const supabase = createServerClient({
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-    },
-  });
-  
-  // セッションの確認
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-  }
-  
-  // 現在のお気に入り状態を確認
-  const { data: existingFavorite } = await supabase
-    .from('favorites')
-    .select('id')
-    .eq('user_id', session.user.id)
-    .eq('model_id', params.modelId)
-    .single();
-  
-  if (existingFavorite) {
-    // お気に入りを削除
-    const { error } = await supabase
-      .from('favorites')
-      .delete()
-      .eq('id', existingFavorite.id);
-    
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-    
-    // モデルのお気に入りカウントを更新
-    await supabase.rpc('decrement_favorite_count', { model_id: params.modelId });
-    
-    return NextResponse.json({ favorited: false });
-  } else {
-    // お気に入りを追加
-    const { error } = await supabase
-      .from('favorites')
-      .insert({
-        user_id: session.user.id,
-        model_id: params.modelId
-      });
-    
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-    
-    // モデルのお気に入りカウントを更新
-    await supabase.rpc('increment_favorite_count', { model_id: params.modelId });
-    
-    return NextResponse.json({ favorited: true });
-  }
-}
-```
-
-#### 3.3.2 共有API
-
-```typescript
-// app/api/shares/route.ts
-import { createServerClient } from '@supabase/auth-helpers-nextjs';
+// app/api/files/upload/route.ts
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
-  const cookieStore = cookies();
-  const supabase = createServerClient({
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-    },
-  });
-  
+  const supabase = createRouteHandlerClient({ cookies });
   const { data: { session } } = await supabase.auth.getSession();
-  const userId = session?.user.id || null; // 非ログインでも記録可能
+  
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   
   try {
-    const body = await request.json();
-    const { modelId, platform, shareUrl } = body;
+    const formData = await request.formData();
+    const file = formData.get('file') as File;
+    const article_id = formData.get('article_id') as string;
+    const relative_path = formData.get('relative_path') as string;
     
-    if (!modelId || !platform) {
-      return NextResponse.json(
-        { error: '必須パラメータが不足しています' },
-        { status: 400 }
-      );
+    if (!file) {
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
     
-    const { error } = await supabase
-      .from('shares')
-      .insert({
-        user_id: userId,
-        model_id: modelId,
-        platform,
-        share_url: shareUrl || null
+    // ファイルパスを生成（フォルダ構造を維持）
+    const basePath = `${session.user.id}/${article_id}`;
+    const filePath = relative_path ? `${basePath}/${relative_path}/${file.name}` : `${basePath}/${file.name}`;
+    
+    // Supabaseストレージにアップロード
+    const { data: storageData, error: storageError } = await supabase
+      .storage
+      .from('files')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        contentType: file.type,
       });
+    
+    if (storageError) {
+      return NextResponse.json({ error: storageError.message }, { status: 500 });
+    }
+    
+    // 公開URLを取得
+    const { data: urlData } = await supabase
+      .storage
+      .from('files')
+      .getPublicUrl(filePath);
+    
+    // filesテーブルに登録
+    const fileExt = file.name.split('.').pop().toLowerCase();
+    const fileType = ['stl', 'obj', 'gltf', 'glb'].includes(fileExt) ? fileExt : 'other';
+    
+    const { data, error } = await supabase
+      .from('files')
+      .insert([
+        {
+          article_id,
+          filename: file.name,
+          file_path: filePath,
+          file_size: file.size,
+          file_type: fileType
+        }
+      ])
+      .select()
+      .single();
     
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     
-    // モデルの共有カウントを更新
-    await supabase.rpc('increment_share_count', { model_id: modelId });
-    
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-```
-
-#### 3.3.3 タグAPI
-
-```typescript
-// app/api/tags/route.ts
-import { createServerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const limit = parseInt(searchParams.get('limit') || '10', 10);
-  
-  const cookieStore = cookies();
-  const supabase = createServerClient({
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-    },
-  });
-  
-  // タグ使用回数でソートして取得
-  const { data, error } = await supabase
-    .from('tags')
-    .select(`
-      id,
-      name,
-      model_tags(count)
-    `)
-    .order('model_tags(count)', { ascending: false })
-    .limit(limit);
-  
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-  
-  return NextResponse.json({ tags: data });
-}
-```
-
-```typescript
-// app/api/tags/[tagName]/models/route.ts
-import { createServerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-
-export async function GET(
-  request: Request,
-  { params }: { params: { tagName: string } }
-) {
-  const { searchParams } = new URL(request.url);
-  const page = parseInt(searchParams.get('page') || '1', 10);
-  const limit = parseInt(searchParams.get('limit') || '12', 10);
-  
-  const cookieStore = cookies();
-  const supabase = createServerClient({
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-    },
-  });
-  
-  const from = (page - 1) * limit;
-  
-  const { data, error } = await supabase
-    .from('models')
-    .select(`
-      *,
-      users:user_id (
-        name,
-        avatar_url
-      ),
-      model_tags!inner(
-        tags!inner(
-          name
-        )
-      )
-    `)
-    .eq('model_tags.tags.name', params.tagName.toLowerCase())
-    .order('created_at', { ascending: false })
-    .range(from, from + limit - 1);
-  
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-  
-  return NextResponse.json({ models: data });
-}
-```
-
-```typescript
-// app/api/models/[id]/tags/route.ts
-import { createServerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-
-export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  const cookieStore = cookies();
-  const supabase = createServerClient({
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-    },
-  });
-  
-  // セッションの確認
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-  }
-  
-  // モデルの所有者を確認
-  const { data: model } = await supabase
-    .from('models')
-    .select('user_id')
-    .eq('id', params.id)
-    .single();
-  
-  if (!model) {
-    return NextResponse.json({ error: 'モデルが見つかりません' }, { status: 404 });
-  }
-  
-  if (model.user_id !== session.user.id) {
-    return NextResponse.json({ error: '権限がありません' }, { status: 403 });
-  }
-  
-  try {
-    const body = await request.json();
-    const { tags } = body;
-    
-    if (!Array.isArray(tags) || tags.length === 0) {
-      return NextResponse.json(
-        { error: 'タグは配列で指定してください' },
-        { status: 400 }
-      );
-    }
-    
-    // 最大5つまでに制限
-    const tagsToAdd = tags.slice(0, 5);
-    
-    // 各タグを処理
-    for (const tagName of tagsToAdd) {
-      // タグが存在するか確認、なければ作成
-      const { data: existingTag } = await supabase
-        .from('tags')
-        .select('id')
-        .eq('name', tagName.toLowerCase())
-        .single();
-      
-      let tagId = existingTag?.id;
-      
-      if (!tagId) {
-        const { data: newTag, error: createError } = await supabase
-          .from('tags')
-          .insert({ name: tagName.toLowerCase() })
-          .select('id')
-          .single();
-        
-        if (createError) throw createError;
-        tagId = newTag.id;
-      }
-      
-      // モデルとタグの関連付け
-      const { error: linkError } = await supabase
-        .from('model_tags')
-        .insert({
-          model_id: params.id,
-          tag_id: tagId
-        })
-        .onConflict(['model_id', 'tag_id'])
-        .ignore(); // 既に関連付けがあれば無視
-      
-      if (linkError) throw linkError;
-    }
-    
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ data });
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 });
   }
 }
 ```
