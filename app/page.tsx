@@ -6,24 +6,23 @@ import { formatDistanceToNow } from 'date-fns';
 import { ja } from 'date-fns/locale';
 
 // 型定義
-interface Model {
+interface Article {
   id: string;
   title: string;
-  description?: string;
-  file_url: string;
-  thumbnail_url?: string;
+  content: string;
+  hero_image: string | null;
+  status: string;
   created_at: string;
-  user_id: string;
+  author_id: string;
+  view_count: number;
+  download_count: number;
+  updated_at: string;
 }
 
 interface User {
   id: string;
   name: string;
   avatar_url: string | null;
-}
-
-interface ModelWithUser extends Model {
-  users: User;
 }
 
 // 日付フォーマットヘルパー関数
@@ -54,16 +53,32 @@ export const revalidate = 0;
 export default async function Home() {
   const supabase = createServerComponentClient({ cookies });
 
-  // 最新20件のモデルを取得
-  const { data: latestModels, error } = await supabase
-    .from('models')
-    .select(`*, users(id, name, avatar_url)`)
+  // 最新20件の公開記事を取得
+  const { data: latestArticles, error } = await supabase
+    .from('articles')
+    .select('*')
+    .eq('status', 'published')
     .order('created_at', { ascending: false })
     .limit(20);
 
   if (error) {
-    console.error("モデル取得エラー:", error);
+    console.error("記事取得エラー:", error);
   }
+
+  // 著者のIDを取得
+  const authorIds = latestArticles?.map(article => article.author_id) || [];
+  
+  // 著者情報を取得
+  const { data: authors } = await supabase
+    .from('users')
+    .select('*')
+    .in('id', authorIds);
+    
+  // 著者情報をマッピング
+  const authorsMap: Record<string, User> = {};
+  authors?.forEach(author => {
+    authorsMap[author.id] = author;
+  });
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -71,47 +86,47 @@ export default async function Home() {
       <section className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl p-8 md:p-12 mb-12">
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 mb-4">
-            かわいい・おもしろい3Dモデルをみんなで共有しよう
+            3Dプリント関連の知識・経験・制作物を共有しよう
           </h1>
           <p className="text-lg md:text-xl text-gray-600 mb-8">
-            「カタワク」は、あなたの可愛い・面白いをカタチにする<br className="hidden md:block" />
-            3Dモデルサイトです
+            「カタマリ」は、あなたの創作体験や知識を共有する<br className="hidden md:block" />
+            3Dプリントコミュニティプラットフォームです
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/models"
+              href="/articles"
               className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-lg font-medium text-lg transition-colors"
             >
-              モデルを探す
+              記事を探す
             </Link>
             <Link
               href="/login"
               className="bg-white hover:bg-gray-100 text-pink-500 border border-pink-500 px-6 py-3 rounded-lg font-medium text-lg transition-colors"
             >
-              アップロードする
+              投稿する
             </Link>
           </div>
         </div>
       </section>
 
-      {/* 最新のモデルセクション */}
+      {/* 最新の記事セクション */}
       <section className="mb-16">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">新着モデル</h2>
-          <Link href="/models" className="text-pink-500 hover:text-pink-600">
+          <h2 className="text-2xl font-bold text-gray-800">新着記事</h2>
+          <Link href="/articles" className="text-pink-500 hover:text-pink-600">
             すべて見る →
           </Link>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {latestModels && latestModels.map((model: ModelWithUser) => (
-            <Link key={model.id} href={`/models/${model.id}`} className="group">
+          {latestArticles && latestArticles.map((article) => (
+            <Link key={article.id} href={`/articles/${article.id}`} className="group">
               <div className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
                 <div className="w-full h-48 bg-gray-100 relative overflow-hidden">
-                  {model.thumbnail_url ? (
+                  {article.hero_image ? (
                     <Image
-                      src={getPublicUrl('model_thumbnails', model.thumbnail_url)}
-                      alt={model.title}
+                      src={article.hero_image}
+                      alt={article.title}
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       className="object-cover"
@@ -126,16 +141,16 @@ export default async function Home() {
                 </div>
                 <div className="p-4">
                   <h3 className="font-medium text-gray-800 mb-1 group-hover:text-pink-500 transition-colors truncate">
-                    {model.title}
+                    {article.title}
                   </h3>
                   <div className="flex items-center mt-2">
                     <div className="w-6 h-6 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
-                      {model.users.avatar_url ? (
+                      {authorsMap[article.author_id]?.avatar_url ? (
                         <Image
-                          src={model.users.avatar_url.startsWith('http')
-                            ? model.users.avatar_url
-                            : getPublicUrl('avatars', model.users.avatar_url)}
-                          alt={model.users.name}
+                          src={authorsMap[article.author_id]?.avatar_url?.startsWith('http')
+                            ? authorsMap[article.author_id]?.avatar_url || ''
+                            : getPublicUrl('avatars', authorsMap[article.author_id]?.avatar_url || '')}
+                          alt={authorsMap[article.author_id]?.name || '不明なユーザー'}
                           width={24}
                           height={24}
                           className="object-cover"
@@ -143,13 +158,19 @@ export default async function Home() {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">
-                          {model.users.name?.charAt(0).toUpperCase() || 'U'}
+                          {authorsMap[article.author_id]?.name?.charAt(0).toUpperCase() || 'U'}
                         </div>
                       )}
                     </div>
-                    <span className="ml-2 text-sm text-gray-600">{model.users.name}</span>
+                    <span className="ml-2 text-sm text-gray-600">{authorsMap[article.author_id]?.name || '不明なユーザー'}</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">{formatDate(model.created_at)}</p>
+                  <div className="flex justify-between mt-1">
+                    <p className="text-xs text-gray-500">{formatDate(article.created_at)}</p>
+                    <div className="flex space-x-2 text-xs text-gray-500">
+                      <span>👁️ {article.view_count}</span>
+                      <span>⬇️ {article.download_count}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </Link>
@@ -164,7 +185,7 @@ export default async function Home() {
             <div className="flex-1">
               <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-blue-600 mb-3">✨ Bambu Labの3Dプリンターで作ろう ✨</h2>
               <p className="text-gray-600 mb-6 text-lg">
-                カタワクのモデルは、高品質な3Dプリンターで出力するとさらに美しく仕上がります。Bambu Labの製品なら、誰でも簡単に高精度な3D印刷が可能です♪
+                カタマリの記事で紹介されているモデルは、高品質な3Dプリンターで出力するとさらに美しく仕上がります。Bambu Labの製品なら、誰でも簡単に高精度な3D印刷が可能です♪
               </p>
               <a
                 href="https://jp.store.bambulab.com/"
@@ -196,8 +217,8 @@ export default async function Home() {
             3Dプリントで、共有する喜び
           </h1>
           <p className="text-xl text-center text-gray-600 mb-12 max-w-3xl mx-auto">
-            カタマリは、かわいい・おもしろい・役立つ3Dモデルを共有できるプラットフォーム。
-            あなたのアイデアを形にして、みんなで楽しみましょう。
+            カタマリは、3Dプリントに関する知識・経験・制作物を共有できるプラットフォーム。
+            あなたの創作体験をみんなで共有しましょう。
           </p>
         </div>
       </section>
