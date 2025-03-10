@@ -2,10 +2,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 
 // 保護されていないルート
-const publicRoutes = ['/', '/login', '/callback', '/models'];
+const publicRoutes = ['/', '/login', '/callback', '/articles'];
 
 // 認証なしでアクセス可能なパスのプレフィックス
-const publicPathPrefixes = ['/models/'];
+const publicPathPrefixes = ['/articles/'];
 
 export async function middleware(request: NextRequest) {
     const response = NextResponse.next();

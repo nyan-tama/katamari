@@ -50,13 +50,17 @@ export default function Header() {
                     <Link href="/" className="text-gray-700 hover:text-pink-500">
                         ホーム
                     </Link>
+                    
+                    <Link href="/articles" className="text-gray-700 hover:text-pink-500">
+                        記事一覧
+                    </Link>
 
                     {!loading && (
                         <>
                             {user ? (
                                 <>
-                                    <Link href="/upload" className="text-gray-700 hover:text-pink-500">
-                                        アップロード
+                                    <Link href="/articles/new" className="text-gray-700 hover:text-pink-500">
+                                        記事作成
                                     </Link>
                                     <Link href="/profile" className="text-gray-700 hover:text-pink-500">
                                         マイページ

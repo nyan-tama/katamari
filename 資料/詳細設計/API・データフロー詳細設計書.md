@@ -32,7 +32,7 @@
 | `/api/media/upload` | POST | 記事用メディアのアップロード | 必須 | ❌ 実装予定 |
 | `/api/files/upload` | POST | 記事添付ファイルのアップロード | 必須 | ❌ 実装予定 |
 | `/api/preview/3d` | POST | 3Dモデルのプレビュー生成 | 必須 | ❌ 実装予定 |
-| `/api/search` | GET | モデル検索 | 不要 | ❌ フェーズ2で実装予定 |
+| `/api/search` | GET | 記事検索 | 不要 | ❌ フェーズ2で実装予定 |
 | `/api/favorites/[articleId]` | POST | 記事へのお気に入り登録/解除 | 必須 | ❌ フェーズ2で実装予定 |
 | `/api/favorites/[articleId]` | GET | お気に入り状態の確認 | 必須 | ❌ フェーズ2で実装予定 |
 | `/api/shares` | POST | 記事共有情報の記録 | 必須 | ❌ フェーズ2で実装予定 |
@@ -42,9 +42,320 @@
 | `/api/tags/[tagName]/articles` | GET | 特定タグに関連する記事取得 | 不要 | ❌ フェーズ2で実装予定 |
 | `/api/articles/[id]/tags` | POST | 記事へのタグ追加 | 必須 | ❌ フェーズ2で実装予定 |
 
-## 2. Supabase APIの利用
+## 2. 主要APIフロー詳細
 
-### 2.1 認証API
+### 2.1 記事作成フロー
+
+記事作成は複数のAPIリクエストを含む複雑なプロセスです。以下にフロー全体を説明します。
+
+#### 2.1.1 記事作成フロー概要
+
+1. リッチテキストエディタで記事を作成（クライアントサイド）
+2. メディア（画像・動画）をアップロード（エディタ編集中）
+3. 記事本文を一時保存（定期的）
+4. ヒーロー画像をアップロード
+5. 添付ファイル一式をアップロード（フォルダ構造維持）
+6. 記事情報をデータベースに保存
+7. 公開設定の場合は公開処理
+
+#### 2.1.2 リッチテキストエディタの実装
+
+TipTapエディタを使用し、以下の機能を提供します：
+
+- 基本的なテキスト書式設定（太字、斜体、箇条書きなど）
+- 画像アップロードと埋め込み
+- 動画埋め込み
+- 3Dモデルファイル埋め込み
+- コードブロック
+
+エディタの内容はJSON形式で保存され、レンダリング時に適切なHTMLに変換されます。
+
+#### 2.1.3 メディアアップロードAPI
+
+##### `/api/media/upload` エンドポイント詳細
+
+**リクエスト**:
+```json
+{
+  "method": "POST",
+  "headers": {
+    "Content-Type": "multipart/form-data"
+  },
+  "body": {
+    "file": "[ファイルオブジェクト]",
+    "articleId": "一時記事ID（ドラフト作成時に生成）",
+    "mediaType": "image|video|model"
+  }
+}
+```
+
+**レスポンス**:
+```json
+{
+  "success": true,
+  "url": "https://katamari.jp/storage/v1/media/user_id/article_id/filename.jpg",
+  "mediaId": "生成されたメディアID",
+  "width": 800,
+  "height": 600
+}
+```
+
+**処理フロー**:
+1. ユーザー認証確認
+2. ファイルバリデーション（タイプ、サイズ、セキュリティチェック）
+3. Supabaseストレージの`media`バケットにアップロード
+4. 画像の場合、メタデータ（幅、高さ）を抽出
+5. `article_media`テーブルに情報を登録
+6. アップロード済みファイルのURLと情報を返却
+
+#### 2.1.4 ファイルアップロードAPI
+
+##### `/api/files/upload` エンドポイント詳細
+
+**リクエスト**:
+```json
+{
+  "method": "POST",
+  "headers": {
+    "Content-Type": "multipart/form-data"
+  },
+  "body": {
+    "file": "[ファイルオブジェクト]",
+    "articleId": "記事ID",
+    "relativePath": "ファイルの相対パス（フォルダ構造維持用）",
+    "fileType": "ファイルタイプ"
+  }
+}
+```
+
+**レスポンス**:
+```json
+{
+  "success": true,
+  "url": "https://katamari.jp/storage/v1/articles/user_id/article_id/path/filename.stl",
+  "fileId": "生成されたファイルID",
+  "fileSize": 1024000
+}
+```
+
+**処理フロー**:
+1. ユーザー認証確認
+2. ファイルバリデーション
+3. フォルダパス構造の検証と作成
+4. Supabaseストレージの`articles`バケットに指定パスでアップロード
+5. `files`テーブルに情報を登録
+6. アップロード済みファイルのURLと情報を返却
+
+#### 2.1.5 複数ファイルの一括アップロード
+
+フォルダ構造を維持したまま複数ファイルをアップロードするために、クライアント側でフォルダツリーを解析し、各ファイルを適切な相対パスで`/api/files/upload`エンドポイントに送信します。
+
+```javascript
+// フォルダ構造を維持したアップロード処理の例
+async function uploadFolderContents(folderEntry, articleId) {
+  // FileSystemAPIでフォルダ内のすべてのエントリを取得
+  const entries = await readDirectoryEntries(folderEntry);
+  
+  for (const entry of entries) {
+    if (entry.isFile) {
+      // ファイルの場合は相対パスでアップロード
+      const file = await entry.file();
+      const relativePath = entry.fullPath;
+      await uploadFile(file, articleId, relativePath);
+    } else if (entry.isDirectory) {
+      // ディレクトリの場合は再帰的に処理
+      await uploadFolderContents(entry, articleId);
+    }
+  }
+}
+```
+
+### 2.2 記事取得フロー
+
+#### 2.2.1 記事一覧取得
+
+##### `/api/articles` エンドポイント詳細
+
+**リクエスト**:
+```json
+{
+  "method": "GET",
+  "params": {
+    "page": 1,
+    "limit": 10,
+    "sort": "created_at:desc",
+    "filter": "tag:3dprinting"
+  }
+}
+```
+
+**レスポンス**:
+```json
+{
+  "articles": [
+    {
+      "id": "記事ID",
+      "title": "記事タイトル",
+      "author": {
+        "id": "著者ID",
+        "name": "著者名",
+        "avatar_url": "アバターURL"
+      },
+      "hero_image": "ヒーロー画像URL",
+      "created_at": "2023-01-01T00:00:00Z",
+      "updated_at": "2023-01-02T00:00:00Z",
+      "view_count": 123,
+      "download_count": 45
+    }
+  ],
+  "pagination": {
+    "total": 100,
+    "page": 1,
+    "limit": 10,
+    "total_pages": 10
+  }
+}
+```
+
+**処理フロー**:
+1. クエリパラメータの解析
+2. Supabase RLSポリシーに基づいた記事一覧の取得
+3. 著者情報の結合
+4. ページネーション情報の計算
+5. 結果の整形と返却
+
+#### 2.2.2 記事詳細取得
+
+##### `/api/articles/[id]` エンドポイント詳細
+
+**リクエスト**:
+```json
+{
+  "method": "GET",
+  "params": {
+    "id": "記事ID"
+  }
+}
+```
+
+**レスポンス**:
+```json
+{
+  "article": {
+    "id": "記事ID",
+    "title": "記事タイトル",
+    "content": "リッチテキストJSON",
+    "author": {
+      "id": "著者ID",
+      "name": "著者名",
+      "avatar_url": "アバターURL"
+    },
+    "hero_image": "ヒーロー画像URL",
+    "created_at": "2023-01-01T00:00:00Z",
+    "updated_at": "2023-01-02T00:00:00Z",
+    "view_count": 123,
+    "download_count": 45,
+    "media": [
+      {
+        "id": "メディアID",
+        "url": "メディアURL",
+        "media_type": "image",
+        "alt_text": "代替テキスト"
+      }
+    ],
+    "files": [
+      {
+        "id": "ファイルID",
+        "filename": "ファイル名",
+        "file_path": "ファイルパス",
+        "file_size": 1024000,
+        "file_type": "stl"
+      }
+    ]
+  }
+}
+```
+
+**処理フロー**:
+1. 記事IDの検証
+2. Supabase RLSポリシーに基づいた記事情報の取得
+3. 著者情報の結合
+4. 関連メディア情報の結合
+5. 関連ファイル情報の結合
+6. 閲覧数の更新（非認証ユーザーの場合はセッションベース）
+7. 結果の整形と返却
+
+### 2.3 記事更新フロー
+
+##### `/api/articles/[id]` (PUT) エンドポイント詳細
+
+**リクエスト**:
+```json
+{
+  "method": "PUT",
+  "params": {
+    "id": "記事ID"
+  },
+  "body": {
+    "title": "更新後の記事タイトル",
+    "content": "更新後のリッチテキストJSON",
+    "hero_image": "更新後のヒーロー画像ID",
+    "status": "draft|published"
+  }
+}
+```
+
+**レスポンス**:
+```json
+{
+  "success": true,
+  "article": {
+    "id": "記事ID",
+    "title": "更新後の記事タイトル",
+    "updated_at": "2023-01-03T00:00:00Z"
+  }
+}
+```
+
+**処理フロー**:
+1. ユーザー認証と権限確認
+2. 記事IDの検証
+3. 更新データのバリデーション
+4. 記事情報の更新
+5. ヒーロー画像が変更された場合は関連テーブルの更新
+6. 結果の整形と返却
+
+### 2.3 記事削除フロー
+
+##### `/api/articles/[id]` (DELETE) エンドポイント詳細
+
+**リクエスト**:
+```json
+{
+  "method": "DELETE",
+  "params": {
+    "id": "記事ID"
+  }
+}
+```
+
+**レスポンス**:
+```json
+{
+  "success": true
+}
+```
+
+**処理フロー**:
+1. ユーザー認証と権限確認
+2. 記事IDの検証
+3. 関連ファイルのストレージからの削除
+4. 記事情報のデータベースからの削除（カスケード削除）
+5. 結果の返却
+
+## 3. Supabase APIの利用
+
+### 3.1 認証API
 
 ```typescript
 // lib/supabase/auth.ts
@@ -75,23 +386,23 @@ export async function getSession() {
 }
 ```
 
-### 2.2 データベースAPI
+### 3.2 データベースAPI
 
 ```typescript
-// lib/supabase/models.ts
+// lib/supabase/articles.ts
 import { supabase } from './client';
-import { Model } from '@/lib/types';
+import { Article } from '@/lib/types';
 
-// モデル一覧取得
-export async function getModels(limit = 20, page = 1): Promise<{ data: Model[] | null; error: any }> {
+// 記事一覧取得
+export async function getArticles(limit = 20, page = 1): Promise<{ data: Article[] | null; error: any }> {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
   
   const { data, error } = await supabase
-    .from('models')
+    .from('articles')
     .select(`
       *,
-      users:user_id (
+      users:author_id (
         name,
         avatar_url
       )
@@ -102,13 +413,13 @@ export async function getModels(limit = 20, page = 1): Promise<{ data: Model[] |
   return { data, error };
 }
 
-// 特定モデル取得
-export async function getModelById(id: string): Promise<{ data: Model | null; error: any }> {
+// 特定記事取得
+export async function getArticleById(id: string): Promise<{ data: Article | null; error: any }> {
   const { data, error } = await supabase
-    .from('models')
+    .from('articles')
     .select(`
       *,
-      users:user_id (
+      users:author_id (
         name,
         avatar_url
       )
@@ -119,20 +430,20 @@ export async function getModelById(id: string): Promise<{ data: Model | null; er
   return { data, error };
 }
 
-// モデル作成
-export async function createModel(model: Omit<Model, 'id' | 'created_at' | 'updated_at'>): Promise<{ data: any; error: any }> {
+// 記事作成
+export async function createArticle(article: Omit<Article, 'id' | 'created_at' | 'updated_at'>): Promise<{ data: any; error: any }> {
   const { data, error } = await supabase
-    .from('models')
-    .insert(model)
+    .from('articles')
+    .insert(article)
     .select();
   
   return { data, error };
 }
 
-// モデル更新
-export async function updateModel(id: string, updates: Partial<Model>): Promise<{ data: any; error: any }> {
+// 記事更新
+export async function updateArticle(id: string, updates: Partial<Article>): Promise<{ data: any; error: any }> {
   const { data, error } = await supabase
-    .from('models')
+    .from('articles')
     .update(updates)
     .eq('id', id)
     .select();
@@ -140,10 +451,10 @@ export async function updateModel(id: string, updates: Partial<Model>): Promise<
   return { data, error };
 }
 
-// モデル削除
-export async function deleteModel(id: string): Promise<{ error: any }> {
+// 記事削除
+export async function deleteArticle(id: string): Promise<{ error: any }> {
   const { error } = await supabase
-    .from('models')
+    .from('articles')
     .delete()
     .eq('id', id);
   
@@ -151,7 +462,7 @@ export async function deleteModel(id: string): Promise<{ error: any }> {
 }
 ```
 
-### 2.3 ストレージAPI
+### 3.3 ストレージAPI
 
 ```typescript
 // lib/supabase/storage.ts
@@ -199,14 +510,14 @@ export async function deleteFile(
 }
 ```
 
-### 2.4 フェーズ2で追加予定のSupabase API関数
+### 3.4 フェーズ2で追加予定のSupabase API関数
 
 ```typescript
 // lib/supabase/favorites.ts
 import { supabase } from './client';
 
 // お気に入りの切り替え（追加/削除）
-export async function toggleFavorite(modelId: string): Promise<{ favorited: boolean, error: any }> {
+export async function toggleFavorite(articleId: string): Promise<{ favorited: boolean, error: any }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return { favorited: false, error: '認証が必要です' };
@@ -217,7 +528,7 @@ export async function toggleFavorite(modelId: string): Promise<{ favorited: bool
     .from('favorites')
     .select('id')
     .eq('user_id', user.id)
-    .eq('model_id', modelId)
+    .eq('article_id', articleId)
     .single();
   
   if (existingFavorite) {
@@ -227,9 +538,9 @@ export async function toggleFavorite(modelId: string): Promise<{ favorited: bool
       .delete()
       .eq('id', existingFavorite.id);
     
-    // モデルのお気に入りカウントを更新
+    // 記事のお気に入りカウントを更新
     if (!error) {
-      await supabase.rpc('decrement_favorite_count', { model_id: modelId });
+      await supabase.rpc('decrement_favorite_count', { article_id: articleId });
     }
     
     return { favorited: false, error };
@@ -237,11 +548,11 @@ export async function toggleFavorite(modelId: string): Promise<{ favorited: bool
     // お気に入りを追加
     const { error } = await supabase
       .from('favorites')
-      .insert({ user_id: user.id, model_id: modelId });
+      .insert({ user_id: user.id, article_id: articleId });
     
-    // モデルのお気に入りカウントを更新
+    // 記事のお気に入りカウントを更新
     if (!error) {
-      await supabase.rpc('increment_favorite_count', { model_id: modelId });
+      await supabase.rpc('increment_favorite_count', { article_id: articleId });
     }
     
     return { favorited: true, error };
@@ -249,7 +560,7 @@ export async function toggleFavorite(modelId: string): Promise<{ favorited: bool
 }
 
 // お気に入り状態の確認
-export async function checkFavoriteStatus(modelId: string): Promise<boolean> {
+export async function checkFavoriteStatus(articleId: string): Promise<boolean> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return false;
@@ -260,7 +571,7 @@ export async function checkFavoriteStatus(modelId: string): Promise<boolean> {
     .from('favorites')
     .select('id')
     .eq('user_id', user.id)
-    .eq('model_id', modelId)
+    .eq('article_id', articleId)
     .single();
     
   return !!data;
@@ -273,7 +584,7 @@ import { supabase } from './client';
 
 // 共有情報の記録
 export async function recordShare(
-  modelId: string, 
+  articleId: string, 
   platform: string,
   shareUrl?: string
 ): Promise<{ success: boolean, error: any }> {
@@ -285,25 +596,25 @@ export async function recordShare(
     .from('shares')
     .insert({
       user_id: userId,
-      model_id: modelId,
+      article_id: articleId,
       platform,
       share_url: shareUrl || null
     });
   
-  // モデルの共有カウントを更新
+  // 記事の共有カウントを更新
   if (!error) {
-    await supabase.rpc('increment_share_count', { model_id: modelId });
+    await supabase.rpc('increment_share_count', { article_id: articleId });
   }
   
   return { success: !error, error };
 }
 
-// モデルの共有数取得
-export async function getShareCount(modelId: string): Promise<number> {
+// 記事の共有数取得
+export async function getShareCount(articleId: string): Promise<number> {
   const { count, error } = await supabase
     .from('shares')
     .select('id', { count: 'exact' })
-    .eq('model_id', modelId);
+    .eq('article_id', articleId);
   
   return count || 0;
 }
@@ -320,16 +631,16 @@ export async function getPopularTags(limit = 10): Promise<{ data: any[], error: 
     .select(`
       id,
       name,
-      model_tags(count)
+      article_tags(count)
     `)
-    .order('model_tags(count)', { ascending: false })
+    .order('article_tags(count)', { ascending: false })
     .limit(limit);
   
   return { data, error };
 }
 
-// タグによるモデル検索
-export async function getModelsByTag(
+// タグによる記事検索
+export async function getArticlesByTag(
   tagName: string,
   page = 1,
   limit = 12
@@ -337,29 +648,29 @@ export async function getModelsByTag(
   const from = (page - 1) * limit;
   
   const { data, error } = await supabase
-    .from('models')
+    .from('articles')
     .select(`
       *,
-      users:user_id (
+      users:author_id (
         name,
         avatar_url
       ),
-      model_tags!inner(
+      article_tags!inner(
         tags!inner(
           name
         )
       )
     `)
-    .eq('model_tags.tags.name', tagName)
+    .eq('article_tags.tags.name', tagName)
     .order('created_at', { ascending: false })
     .range(from, from + limit - 1);
   
   return { data, error };
 }
 
-// モデルへのタグ追加
-export async function addTagsToModel(
-  modelId: string,
+// 記事へのタグ追加
+export async function addTagsToArticle(
+  articleId: string,
   tagNames: string[]
 ): Promise<{ success: boolean, error: any }> {
   // トランザクション的処理（Supabaseではネイティブなトランザクションがない）
@@ -385,14 +696,14 @@ export async function addTagsToModel(
         tagId = newTag.id;
       }
       
-      // モデルとタグの関連付け
+      // 記事とタグの関連付け
       const { error: linkError } = await supabase
-        .from('model_tags')
+        .from('article_tags')
         .insert({
-          model_id: modelId,
+          article_id: articleId,
           tag_id: tagId
         })
-        .onConflict(['model_id', 'tag_id'])
+        .onConflict(['article_id', 'tag_id'])
         .ignore(); // 既に関連付けがあれば無視
       
       if (linkError) throw linkError;
@@ -406,9 +717,9 @@ export async function addTagsToModel(
 }
 ```
 
-## 3. Next.js API Routes
+## 4. Next.js API Routes
 
-### 3.1 ユーザーセッション取得API
+### 4.1 ユーザーセッション取得API
 
 ```typescript
 // app/api/auth/session/route.ts
@@ -424,7 +735,7 @@ export async function GET() {
 }
 ```
 
-### 3.2 記事一覧取得API
+### 4.2 記事一覧取得API
 
 ```typescript
 // app/api/articles/route.ts
@@ -486,7 +797,7 @@ export async function POST(request: Request) {
 }
 ```
 
-### 3.3 記事用メディアアップロードAPI
+### 4.3 記事用メディアアップロードAPI
 
 ```typescript
 // app/api/media/upload/route.ts
@@ -563,7 +874,7 @@ export async function POST(request: Request) {
 }
 ```
 
-### 3.4 ファイルアップロードAPI
+### 4.4 ファイルアップロードAPI
 
 ```typescript
 // app/api/files/upload/route.ts
@@ -642,105 +953,188 @@ export async function POST(request: Request) {
 }
 ```
 
-## 4. データフロー
+## 4. データフローシーケンス図
 
-### 4.1 ユーザー認証フロー
+### 4.1 記事投稿フロー
 
-```mermaid
-sequenceDiagram
-    クライアント->>+Next.js: ログインボタンクリック
-    Next.js->>+Supabase Auth: signInWithOAuth('google')
-    Supabase Auth-->>-Next.js: リダイレクトURL
-    Next.js-->>-クライアント: Google認証ページへリダイレクト
-    クライアント->>+Google OAuth: 認証情報入力
-    Google OAuth-->>-クライアント: 認証成功後、コールバックURLへリダイレクト
-    クライアント->>+Next.js: /auth/callback
-    Next.js->>+Supabase Auth: getUser()
-    Supabase Auth-->>-Next.js: ユーザー情報
-    Next.js->>+Supabase DB: ユーザー情報保存/更新
-    Supabase DB-->>-Next.js: 完了
-    Next.js-->>-クライアント: ホームページへリダイレクト
-```
-
-### 4.2 モデルアップロードフロー
+以下のシーケンス図は、記事投稿の全体フローを表しています。
 
 ```mermaid
 sequenceDiagram
-    クライアント->>+Next.js: モデルファイルとメタデータ提出
-    Next.js->>+Supabase Storage: ファイルアップロード
-    Supabase Storage-->>-Next.js: ファイルURL
-    Next.js->>+Supabase DB: モデルメタデータ保存
-    Supabase DB-->>-Next.js: 保存結果
-    Next.js-->>-クライアント: 完了レスポンス
-```
-
-### 4.3 モデル一覧取得フロー
-
-```mermaid
-sequenceDiagram
-    クライアント->>+Next.js: モデル一覧リクエスト
-    Next.js->>+Supabase DB: モデルデータ取得クエリ
-    Supabase DB-->>-Next.js: モデルデータ
-    Next.js-->>-クライアント: モデル一覧レスポンス
-```
-
-### 4.4 モデル詳細表示フロー
-
-```mermaid
-sequenceDiagram
-    クライアント->>+Next.js: モデル詳細リクエスト(ID)
-    Next.js->>+Supabase DB: 特定モデル取得クエリ
-    Supabase DB-->>-Next.js: モデル詳細データ
-    Next.js-->>-クライアント: モデル詳細レスポンス
-```
-
-### 4.5 フェーズ2で追加予定のデータフロー
-
-#### 4.5.1 モデル共有フロー
-
-```mermaid
-sequenceDiagram
-    クライアント->>+Next.js: 共有ボタンクリック
-    Next.js-->>クライアント: SNSシェアダイアログ表示
-    クライアント->>+外部SNS: シェア情報投稿
-    外部SNS-->>-クライアント: 投稿完了
-    クライアント->>+Next.js: 共有情報記録リクエスト
-    Next.js->>+Supabase: 共有情報保存
-    Supabase-->>-Next.js: 保存結果
-    Next.js->>+Supabase: 共有カウント増加
-    Supabase-->>-Next.js: 更新結果
-    Next.js-->>-クライアント: 共有記録完了
-```
-
-#### 4.5.2 タグ検索フロー
-
-```mermaid
-sequenceDiagram
-    クライアント->>+Next.js: タグクリック
-    Next.js->>+Supabase: タグに関連するモデル取得
-    Supabase-->>-Next.js: モデルデータ
-    Next.js-->>-クライアント: タグフィルタリング結果表示
-```
-
-#### 4.5.3 お気に入りフロー
-
-```mermaid
-sequenceDiagram
-    クライアント->>+Next.js: お気に入りボタンクリック
-    Next.js->>+Supabase: お気に入り状態確認
-    Supabase-->>-Next.js: 現在のお気に入り状態
-    alt お気に入り済み
-        Next.js->>+Supabase: お気に入り削除
-        Supabase-->>-Next.js: 削除結果
-        Next.js->>+Supabase: お気に入りカウント減少
-        Supabase-->>-Next.js: 更新結果
-    else お気に入りなし
-        Next.js->>+Supabase: お気に入り追加
-        Supabase-->>-Next.js: 追加結果
-        Next.js->>+Supabase: お気に入りカウント増加
-        Supabase-->>-Next.js: 更新結果
+    actor User as ユーザー
+    participant FE as フロントエンド
+    participant Next as Next.js Server
+    participant Media as /api/media/upload
+    participant Files as /api/files/upload
+    participant API as /api/articles
+    participant SupaDB as Supabase DB
+    participant SupaSt as Supabase Storage
+    
+    User->>FE: 1. 記事エディタを開く
+    FE->>API: 2. ドラフト記事の作成
+    API->>SupaDB: 3. ドラフト記事のレコード作成
+    SupaDB-->>API: 4. 記事ID返却
+    API-->>FE: 5. 記事ID返却
+    
+    User->>FE: 6. リッチテキスト編集
+    
+    par メディアアップロード（記事作成中に並行処理）
+        User->>FE: 7a. 画像/動画挿入
+        FE->>Media: 8a. メディアアップロード
+        Media->>SupaSt: 9a. mediaバケットにファイル保存
+        Media->>SupaDB: 10a. article_mediaレコード作成
+        Media-->>FE: 11a. メディアURL返却
+        FE-->>User: 12a. エディタに画像/動画表示
     end
-    Next.js-->>-クライアント: お気に入り状態更新
+    
+    User->>FE: 13. 記事内容の保存
+    FE->>API: 14. 記事内容の更新
+    API->>SupaDB: 15. 記事レコード更新
+    SupaDB-->>API: 16. 更新結果返却
+    API-->>FE: 17. 保存完了表示
+    
+    par 添付ファイルアップロード
+        User->>FE: 18. フォルダ/ファイル選択
+        FE->>FE: 19. フォルダ構造の解析
+        loop 各ファイルに対して
+            FE->>Files: 20. 相対パス付きでファイルアップロード
+            Files->>SupaSt: 21. articlesバケットに保存
+            Files->>SupaDB: 22. filesレコード作成
+            Files-->>FE: 23. ファイルURL返却
+        end
+        FE-->>User: 24. アップロード完了表示
+    end
+    
+    User->>FE: 25. 記事の公開
+    FE->>API: 26. ステータスを公開に変更
+    API->>SupaDB: 27. 記事ステータス更新
+    SupaDB-->>API: 28. 更新結果返却
+    API-->>FE: 29. 公開完了表示
+    FE-->>User: 30. 記事詳細ページへリダイレクト
+```
+
+### 4.2 メディアアップロードフロー
+
+以下のシーケンス図は、リッチテキストエディタ内でのメディアアップロードフローの詳細を表しています。
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant Editor as リッチテキストエディタ
+    participant FE as フロントエンド
+    participant Media as /api/media/upload
+    participant SupaDB as Supabase DB
+    participant SupaSt as Supabase Storage
+    
+    User->>Editor: 1. 画像/動画挿入ボタンをクリック
+    Editor->>User: 2. ファイル選択ダイアログ表示
+    User->>Editor: 3. メディアファイル選択
+    Editor->>FE: 4. アップロード処理呼び出し
+    FE->>FE: 5. ファイル検証（サイズ、タイプ）
+    FE->>Media: 6. メディアファイル送信
+    Media->>Media: 7. 認証確認とバリデーション
+    Media->>SupaSt: 8. mediaバケットにファイル保存
+    SupaSt-->>Media: 9. ストレージパス返却
+    
+    alt 画像ファイルの場合
+        Media->>Media: 10a. 画像メタデータ取得
+        Media->>SupaDB: 11a. media_type=imageでレコード作成
+    else 動画ファイルの場合
+        Media->>SupaDB: 10b. media_type=videoでレコード作成
+    else 3Dモデルファイルの場合
+        Media->>SupaDB: 10c. media_type=modelでレコード作成
+    end
+    
+    SupaDB-->>Media: 12. メディアIDと保存結果返却
+    Media-->>FE: 13. メディアURLとID返却
+    FE->>Editor: 14. エディタにメディア挿入
+    Editor-->>User: 15. メディアの表示
+```
+
+### 4.3 フォルダ構造を維持したファイルアップロードフロー
+
+以下のシーケンス図は、記事の添付ファイルとして、フォルダ構造を維持したままファイルをアップロードするフローを表しています。
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant FE as フロントエンド
+    participant FSA as FileSystem API
+    participant Upload as アップロードモジュール
+    participant Files as /api/files/upload
+    participant SupaDB as Supabase DB
+    participant SupaSt as Supabase Storage
+    
+    User->>FE: 1. フォルダアップロードボタンをクリック
+    FE->>User: 2. フォルダ選択ダイアログ表示
+    User->>FE: 3. フォルダ選択
+    FE->>FSA: 4. フォルダエントリ取得
+    FSA-->>FE: 5. フォルダ構造返却
+    FE->>FE: 6. フォルダ構造の解析
+    
+    loop 各ファイルに対して
+        FE->>Upload: 7. ファイルと相対パス情報を送信
+        Upload->>Files: 8. multipart/form-dataでファイル送信
+        Files->>Files: 9. 認証確認とバリデーション
+        Files->>SupaSt: 10. articlesバケットに相対パスを保持してファイル保存
+        SupaSt-->>Files: 11. ストレージパス返却
+        Files->>SupaDB: 12. filesテーブルにレコード作成
+        SupaDB-->>Files: 13. ファイルID返却
+        Files-->>Upload: 14. アップロード結果返却
+        Upload-->>FE: 15. ファイル処理完了通知
+        FE->>FE: 16. 進捗状況更新
+    end
+    
+    FE-->>User: 17. 全ファイルのアップロード完了表示
+    FE->>SupaDB: 18. 記事のhas_filesフラグを更新
+    SupaDB-->>FE: 19. 更新結果返却
+    FE-->>User: 20. ファイル構造プレビューの表示
+```
+
+### 4.4 記事閲覧フロー
+
+以下のシーケンス図は、記事の閲覧処理フローを表しています。
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant Browser as ブラウザ
+    participant Next as Next.js Server
+    participant API as /api/articles/[id]
+    participant Stats as /api/stats/view/[id]
+    participant SupaDB as Supabase DB
+    participant SupaSt as Supabase Storage
+    
+    User->>Browser: 1. 記事URLにアクセス
+    Browser->>Next: 2. HTTPリクエスト
+    Next->>API: 3. 記事ID指定でデータ取得
+    API->>SupaDB: 4. 記事データ取得
+    SupaDB-->>API: 5. 記事データ返却
+    API->>SupaDB: 6. 著者データ取得
+    SupaDB-->>API: 7. 著者データ返却
+    API->>SupaDB: 8. メディアデータ取得
+    SupaDB-->>API: 9. メディアデータ返却
+    API->>SupaDB: 10. ファイル情報取得
+    SupaDB-->>API: 11. ファイル情報返却
+    API-->>Next: 12. 統合されたデータ返却
+    
+    par サーバーサイドレンダリング
+        Next->>Browser: 13a. レンダリング済みHTML
+    and 閲覧数カウント（非同期）
+        Next->>Stats: 13b. 閲覧カウント増加リクエスト
+        Stats->>SupaDB: 14b. view_count更新
+        SupaDB-->>Stats: 15b. 更新結果
+    end
+    
+    Browser-->>User: 16. 記事ページ表示
+    
+    opt ファイルダウンロード
+        User->>Browser: 17. ダウンロードボタンクリック
+        Browser->>SupaSt: 18. ファイルダウンロードリクエスト
+        SupaSt-->>Browser: 19. ファイルデータ
+        Browser-->>User: 20. ファイル保存ダイアログ
+        Browser->>SupaDB: 21. ダウンロードカウント増加
+    end
 ```
 
 ## 5. バックエンドワークフロー
@@ -754,14 +1148,14 @@ sequenceDiagram
 5. 成功時にはデータが更新され、クライアントに成功メッセージ返却
 6. 失敗時にはエラーメッセージがクライアントに返却
 
-### 5.2 モデル削除ワークフロー
+### 5.2 記事削除ワークフロー
 
-1. ユーザーがモデル削除ボタンをクリック
+1. ユーザーが記事削除ボタンをクリック
 2. 確認ダイアログ表示
 3. 確認後、削除APIエンドポイントにリクエスト送信
-4. サーバーサイドでモデルオーナーの検証
+4. サーバーサイドで記事作成者の検証
 5. Supabaseストレージから関連ファイル削除
-6. Supabaseデータベースからモデルレコード削除
+6. Supabaseデータベースから記事レコード削除
 7. 成功時にはクライアントに成功メッセージ返却
 8. クライアント側でUI更新（キャッシュクリア、リダイレクトなど）
 
@@ -847,15 +1241,15 @@ export const revalidate = 3600; // 1時間ごとに再検証
 // SWRの実装例
 import useSWR from 'swr';
 
-function useModels() {
-  const { data, error, isLoading, mutate } = useSWR('/api/models', fetcher, {
+function useArticles() {
+  const { data, error, isLoading, mutate } = useSWR('/api/articles', fetcher, {
     refreshInterval: 0, // 自動再フェッチなし
     revalidateOnFocus: false, // フォーカス時に再検証しない
     shouldRetryOnError: false, // エラー時に再試行しない
   });
   
   return {
-    models: data,
+    articles: data,
     isLoading,
     isError: error,
     mutate, // 手動で再検証するための関数
@@ -947,7 +1341,7 @@ export async function GET(request: Request) {
 ### 10.3 分析・統計API
 
 - ダウンロード数集計API
-- 人気モデルランキングAPI
+- 人気記事ランキングAPI
 - ユーザーアクティビティAPI 
 
 ## 10. インフラストラクチャ設定詳細
@@ -1020,15 +1414,15 @@ https://api.vercel.com/v1/integrations/deploy/prj_xxxxxxxxxxxx/HOOK_ID
 #### 10.3.2 イベントトラッキング設定
 以下のカスタムイベントを設定します：
 
-- **model_view**: モデル詳細ページの閲覧
-  - パラメータ: model_id, model_title
-- **model_download**: モデルのダウンロード
-  - パラメータ: model_id, model_title, file_format
-- **model_share**: モデルのSNS共有
-  - パラメータ: model_id, model_title, platform (twitter/facebook/line)
-- **model_favorite**: モデルへのお気に入り
-  - パラメータ: model_id, model_title
-- **model_search**: モデル検索
+- **article_view**: 記事詳細ページの閲覧
+  - パラメータ: article_id, article_title
+- **article_download**: 記事のダウンロード
+  - パラメータ: article_id, article_title, file_format
+- **article_share**: 記事のSNS共有
+  - パラメータ: article_id, article_title, platform (twitter/facebook/line)
+- **article_favorite**: 記事へのお気に入り
+  - パラメータ: article_id, article_title
+- **article_search**: 記事検索
   - パラメータ: query, results_count
 - **tag_click**: タグクリック
   - パラメータ: tag_name
@@ -1036,8 +1430,8 @@ https://api.vercel.com/v1/integrations/deploy/prj_xxxxxxxxxxxx/HOOK_ID
 #### 10.3.3 コンバージョン設定
 以下のイベントをコンバージョンとして設定します：
 
-- **model_download**: 主要コンバージョン
-- **model_share**: セカンダリコンバージョン
+- **article_download**: 主要コンバージョン
+- **article_share**: セカンダリコンバージョン
 - **user_signup**: ユーザー獲得コンバージョン
 
 ## 11. ログ機能
