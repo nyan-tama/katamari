@@ -121,6 +121,12 @@
   },
   {
     "schemaname": "public",
+    "tablename": "favorites",
+    "rowsecurity": "true",
+    "tableowner": "postgres"
+  },
+  {
+    "schemaname": "public",
     "tablename": "users",
     "rowsecurity": "true",
     "tableowner": "postgres"

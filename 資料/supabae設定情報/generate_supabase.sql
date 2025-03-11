@@ -1,11 +1,11 @@
 -- カタマリプラットフォーム Supabase設定用SQLスクリプト
 -- データベース詳細設計書に基づいて作成
 
--- エクステンション設定
+-- 1. エクステンション設定
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
--- 1. テーブル定義の作成
+-- 2. テーブル定義の作成
 
 -- usersテーブル
 CREATE TABLE IF NOT EXISTS public.users (
@@ -21,15 +21,16 @@ CREATE TABLE IF NOT EXISTS public.users (
   facebook_url TEXT, -- Facebook
   tiktok_url TEXT, -- TikTok
   github_url TEXT, -- GitHub
-  avatar_storage_bucket TEXT DEFAULT 'avatars',
-  avatar_storage_path TEXT,
+  default_avatar_url TEXT, -- Google認証から取得したデフォルトアバターURL
+  avatar_storage_bucket TEXT DEFAULT 'avatars', -- カスタムアバター用のバケット
+  avatar_storage_path TEXT, -- カスタムアバターのパス
   role TEXT DEFAULT 'user', -- 'user', 'admin'
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   CONSTRAINT valid_role CHECK (role IN ('user', 'admin'))
 );
 
--- まずarticlesテーブルを外部キー制約なしで作成
+-- articlesテーブル
 CREATE TABLE IF NOT EXISTS public.articles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -47,7 +48,7 @@ CREATE TABLE IF NOT EXISTS public.articles (
   CONSTRAINT valid_status CHECK (status IN ('draft', 'published'))
 );
 
-
+-- article_mediaテーブル
 CREATE TABLE IF NOT EXISTS public.article_media (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   article_id UUID REFERENCES articles(id) ON DELETE CASCADE,
@@ -91,13 +92,6 @@ CREATE TABLE IF NOT EXISTS public.article_metadata (
   CONSTRAINT valid_indexing_control CHECK (indexing_control IN ('index,follow', 'noindex,follow', 'index,nofollow', 'noindex,nofollow'))
 );
 
-
--- 後からarticlesに外部キー制約を追加
-ALTER TABLE articles
-ADD CONSTRAINT fk_hero_image_id
-FOREIGN KEY (hero_image_id) REFERENCES article_media(id) ON DELETE SET NULL;
-
-
 -- download_filesテーブル
 CREATE TABLE IF NOT EXISTS public.download_files (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -106,49 +100,37 @@ CREATE TABLE IF NOT EXISTS public.download_files (
   file_path TEXT NOT NULL,
   file_size INTEGER NOT NULL,
   file_type TEXT,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
-
-
--- tagsテーブル（タグマスター）
-CREATE TABLE IF NOT EXISTS public.tags (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name TEXT NOT NULL UNIQUE,
-  slug TEXT NOT NULL UNIQUE, -- URL用の正規化されたタグ名
-  description TEXT,
-  is_featured BOOLEAN DEFAULT FALSE, -- 注目タグかどうか
-  count INTEGER DEFAULT 0, -- このタグを持つ記事数（キャッシュ）
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- article_tagsテーブル（記事とタグの関連付け）
-CREATE TABLE IF NOT EXISTS public.article_tags (
+-- favoritesテーブル（お気に入り機能用）
+CREATE TABLE IF NOT EXISTS public.favorites (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
-  tag_id UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  PRIMARY KEY (article_id, tag_id)
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  UNIQUE(user_id, article_id)
 );
 
--- 2. インデックスの作成
+-- 3. インデックスの作成
 CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status);
-CREATE INDEX IF NOT EXISTS idx_articles_tags ON articles USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_articles_author_id ON articles(author_id);
 CREATE INDEX IF NOT EXISTS idx_article_media_article_id ON article_media(article_id);
 CREATE INDEX IF NOT EXISTS idx_article_media_type ON article_media(media_type);
-CREATE INDEX IF NOT EXISTS idx_article_media_bucket ON article_media(storage_bucket);
 CREATE INDEX IF NOT EXISTS idx_download_files_article_id ON download_files(article_id);
 CREATE INDEX IF NOT EXISTS idx_download_files_type ON download_files(file_type);
-
--- 3. 全文検索のインデックス作成
-CREATE INDEX IF NOT EXISTS idx_articles_title_trgm ON articles USING GIN (title gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_articles_content_trgm ON articles USING GIN (content gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id);
+CREATE INDEX IF NOT EXISTS idx_favorites_article_id ON favorites(article_id);
 
 -- 4. RLSを有効化
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.articles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.article_media ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.article_metadata ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.download_files ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
 
 -- 5. RLSポリシー設定
 
@@ -200,6 +182,25 @@ ON public.article_media FOR DELETE USING (
   )
 );
 
+-- article_metadataテーブルのRLSポリシー
+CREATE POLICY "メタデータは記事に準じる" ON article_metadata
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM articles
+      WHERE articles.id = article_id
+      AND (articles.status = 'published' OR articles.author_id = auth.uid())
+    )
+  );
+
+CREATE POLICY "メタデータは記事所有者のみ編集可能" ON article_metadata
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM articles
+      WHERE articles.id = article_id
+      AND articles.author_id = auth.uid()
+    )
+  );
+
 -- download_filesテーブルのRLSポリシー
 CREATE POLICY "公開記事のファイルは全体に公開" ON download_files
   FOR SELECT USING (
@@ -237,24 +238,66 @@ CREATE POLICY "自分の記事のファイルのみ削除可能" ON download_fil
     )
   );
 
+-- favoritesテーブルのRLSポリシー
+CREATE POLICY "お気に入りはユーザーに準じる" ON favorites
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM users
+      WHERE users.id = favorites.user_id
+    )
+  );
+
+CREATE POLICY "お気に入りは記事に準じる" ON favorites
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM articles
+      WHERE articles.id = favorites.article_id
+    )
+  );
+
+CREATE POLICY "お気に入りはユーザーのみ追加可能" ON favorites
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM users
+      WHERE users.id = favorites.user_id
+    )
+  );
+
+CREATE POLICY "お気に入りはユーザーのみ削除可能" ON favorites
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM users
+      WHERE users.id = favorites.user_id
+    )
+  );
+
 -- 6. トリガー関数の作成
 
 -- 認証トリガー関数
 CREATE OR REPLACE FUNCTION public.handle_new_user() 
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO public.users (id, email, name, avatar_url)
+  INSERT INTO public.users (
+    id, 
+    email, 
+    name,
+    avatar_storage_bucket,
+    avatar_storage_path,
+    default_avatar_url
+  )
   VALUES (
     NEW.id, 
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1), 'User'),
+    'avatars',
+    NULL,
     NEW.raw_user_meta_data->>'avatar_url'
   )
   ON CONFLICT (id) DO UPDATE
   SET 
     email = EXCLUDED.email,
     name = EXCLUDED.name,
-    avatar_url = EXCLUDED.avatar_url,
+    default_avatar_url = EXCLUDED.default_avatar_url,
     updated_at = now();
     
   RETURN NEW;
@@ -294,123 +337,103 @@ CREATE TRIGGER article_metadata_updated_at
   BEFORE UPDATE ON article_metadata
   FOR EACH ROW EXECUTE FUNCTION update_timestamp_column();
 
--- 8. ストレージバケットの作成
-INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'ユーザーアバター', true);
-INSERT INTO storage.buckets (id, name, public) VALUES ('article_media', '記事内メディア（画像・動画・3Dモデル）', true);
-INSERT INTO storage.buckets (id, name, public) VALUES ('downloads', 'ダウンロード用ファイル', true);
+CREATE TRIGGER download_files_updated_at
+  BEFORE UPDATE ON download_files
+  FOR EACH ROW EXECUTE FUNCTION update_timestamp_column();
 
+CREATE TRIGGER favorites_updated_at
+  BEFORE UPDATE ON favorites
+  FOR EACH ROW EXECUTE FUNCTION update_timestamp_column();
+
+-- 8. ストレージバケットの作成
+INSERT INTO storage.buckets (id, name, public) VALUES ('articles', '記事に添付するファイル一式', true);
+INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'ユーザーアバター画像', true);
+INSERT INTO storage.buckets (id, name, public) VALUES ('article_media', '記事内に埋め込むメディアファイル', true);
 
 -- 9. ストレージのRLSポリシー設定
--- avatarsバケットのRLSポリシー
-CREATE POLICY "アバターは全ユーザーが閲覧可能" ON storage.objects
+
+-- articlesバケットのRLSポリシー
+CREATE POLICY "公開記事のファイルは閲覧可能" ON storage.objects
   FOR SELECT USING (
-    bucket_id = 'avatars'
+    bucket_id = 'articles' AND (
+      EXISTS (
+        SELECT 1 FROM articles a
+        WHERE a.id::text = (storage.foldername(name))[2]
+        AND a.status = 'published'
+      )
+    )
   );
 
-CREATE POLICY "ユーザーは自分のアバターのみアップロード可能" ON storage.objects
+CREATE POLICY "自分の記事のファイルは閲覧可能" ON storage.objects
+  FOR SELECT USING (
+    bucket_id = 'articles' AND (
+      EXISTS (
+        SELECT 1 FROM articles a
+        WHERE a.id::text = (storage.foldername(name))[2]
+        AND a.author_id = auth.uid()
+      )
+    )
+  );
+
+CREATE POLICY "自分の記事のファイルのみアップロード可能" ON storage.objects
   FOR INSERT WITH CHECK (
-    bucket_id = 'avatars' AND 
-    auth.uid()::text = (storage.foldername(name))[1]
+    bucket_id = 'articles' AND (
+      EXISTS (
+        SELECT 1 FROM articles a
+        WHERE a.id::text = (storage.foldername(name))[2]
+        AND a.author_id = auth.uid()
+      )
+    )
   );
 
-CREATE POLICY "ユーザーは自分のアバターのみ更新可能" ON storage.objects
-  FOR UPDATE USING (
-    bucket_id = 'avatars' AND 
-    auth.uid()::text = (storage.foldername(name))[1]
-  );
-
-CREATE POLICY "ユーザーは自分のアバターのみ削除可能" ON storage.objects
+CREATE POLICY "自分の記事のファイルのみ削除可能" ON storage.objects
   FOR DELETE USING (
-    bucket_id = 'avatars' AND 
-    auth.uid()::text = (storage.foldername(name))[1]
+    bucket_id = 'articles' AND (
+      EXISTS (
+        SELECT 1 FROM articles a
+        WHERE a.id::text = (storage.foldername(name))[2]
+        AND a.author_id = auth.uid()
+      )
+    )
   );
 
 -- article_mediaバケットのRLSポリシー
-CREATE POLICY "公開記事のメディアは全ユーザーが閲覧可能" ON storage.objects
-  FOR SELECT USING (
-    bucket_id = 'article_media' AND (
-      EXISTS (
-        SELECT 1 FROM articles a
-        WHERE a.id::text = (storage.foldername(name))[2]
-        AND (a.status = 'published' OR a.author_id = auth.uid())
-      )
-    )
-  );
+CREATE POLICY "メディアは公開で読み取り可能" ON storage.objects
+  FOR SELECT USING (bucket_id = 'article_media');
 
-CREATE POLICY "ユーザーは自分の記事のメディアのみアップロード可能" ON storage.objects
-  FOR INSERT WITH CHECK (
-    bucket_id = 'article_media' AND (
-      EXISTS (
-        SELECT 1 FROM articles a
-        WHERE a.id::text = (storage.foldername(name))[2]
-        AND a.author_id = auth.uid()
-      )
-    )
-  );
+CREATE POLICY "認証済みユーザーはメディアをアップロード可能" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'article_media' AND auth.uid() = (storage.foldername(name))[1]::uuid);
 
-CREATE POLICY "ユーザーは自分の記事のメディアのみ更新可能" ON storage.objects
-  FOR UPDATE USING (
-    bucket_id = 'article_media' AND (
-      EXISTS (
-        SELECT 1 FROM articles a
-        WHERE a.id::text = (storage.foldername(name))[2]
-        AND a.author_id = auth.uid()
-      )
-    )
-  );
+CREATE POLICY "ユーザーは自分のメディアのみ削除可能" ON storage.objects
+  FOR DELETE USING (bucket_id = 'article_media' AND auth.uid() = (storage.foldername(name))[1]::uuid);
 
-CREATE POLICY "ユーザーは自分の記事のメディアのみ削除可能" ON storage.objects
-  FOR DELETE USING (
-    bucket_id = 'article_media' AND (
-      EXISTS (
-        SELECT 1 FROM articles a
-        WHERE a.id::text = (storage.foldername(name))[2]
-        AND a.author_id = auth.uid()
-      )
-    )
-  );
+-- avatarsバケットのRLSポリシー
+CREATE POLICY "アバターは公開で読み取り可能" ON storage.objects
+  FOR SELECT USING (bucket_id = 'avatars');
 
--- downloadsバケットのRLSポリシー
-CREATE POLICY "公開記事のダウンロードファイルは全ユーザーが閲覧可能" ON storage.objects
-  FOR SELECT USING (
-    bucket_id = 'downloads' AND (
-      EXISTS (
-        SELECT 1 FROM articles a
-        WHERE a.id::text = (storage.foldername(name))[2]
-        AND (a.status = 'published' OR a.author_id = auth.uid())
-      )
-    )
-  );
+CREATE POLICY "認証済みユーザーはアバターをアップロード可能" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'avatars' AND auth.uid() = (storage.foldername(name))[1]::uuid);
 
-CREATE POLICY "download_files_select_policy" ON storage.objects
-  FOR SELECT USING (
-    bucket_id = 'downloads' AND (
-      EXISTS (
-        SELECT 1 FROM articles a
-        WHERE a.id::text = (storage.foldername(name))[2]
-        AND (a.status = 'published' OR a.author_id = auth.uid())
-      )
-    )
-  );
+CREATE POLICY "ユーザーは自分のアバターのみ削除可能" ON storage.objects
+  FOR DELETE USING (bucket_id = 'avatars' AND auth.uid() = (storage.foldername(name))[1]::uuid);
 
-CREATE POLICY "download_files_update_policy" ON storage.objects
-  FOR UPDATE USING (
-    bucket_id = 'downloads' AND (
-      EXISTS (
-        SELECT 1 FROM articles a
-        WHERE a.id::text = (storage.foldername(name))[2]
-        AND a.author_id = auth.uid()
-      )
-    )
-  );
-
-CREATE POLICY "download_files_delete_policy" ON storage.objects
-  FOR DELETE USING (
-    bucket_id = 'downloads' AND (
-      EXISTS (
-        SELECT 1 FROM articles a
-        WHERE a.id::text = (storage.foldername(name))[2]
-        AND a.author_id = auth.uid()
-      )
-    )
-  );
+-- 10. 全文検索関数の作成
+CREATE OR REPLACE FUNCTION search_articles(search_term TEXT)
+RETURNS SETOF articles AS $$
+BEGIN
+  RETURN QUERY
+  SELECT *
+  FROM articles
+  WHERE status = 'published' AND
+    (title ILIKE '%' || search_term || '%'
+     OR content ILIKE '%' || search_term || '%')
+  ORDER BY 
+    CASE 
+      WHEN title ILIKE search_term THEN 0
+      WHEN title ILIKE search_term || '%' THEN 1
+      WHEN title ILIKE '%' || search_term || '%' THEN 2
+      ELSE 3
+    END,
+    created_at DESC;
+END;
+$$ LANGUAGE plpgsql; 

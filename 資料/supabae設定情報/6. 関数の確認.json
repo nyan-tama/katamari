@@ -76,6 +76,11 @@
   },
   {
     "schema_name": "public",
+    "function_name": "handle_new_user",
+    "function_definition": "CREATE OR REPLACE FUNCTION public.handle_new_user()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  INSERT INTO public.users (\n    id, \n    email, \n    name,\n    avatar_storage_bucket,\n    avatar_storage_path,\n    default_avatar_url\n  )\n  VALUES (\n    NEW.id, \n    NEW.email,\n    COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1), 'User'),\n    'avatars',\n    NULL,\n    NEW.raw_user_meta_data->>'avatar_url'\n  )\n  ON CONFLICT (id) DO UPDATE\n  SET \n    email = EXCLUDED.email,\n    name = EXCLUDED.name,\n    default_avatar_url = EXCLUDED.default_avatar_url,\n    updated_at = now();\n    \n  RETURN NEW;\nEND;\n$function$\n"
+  },
+  {
+    "schema_name": "public",
     "function_name": "set_limit",
     "function_definition": "CREATE OR REPLACE FUNCTION public.set_limit(real)\n RETURNS real\n LANGUAGE c\n STRICT\nAS '$libdir/pg_trgm', $function$set_limit$function$\n"
   },

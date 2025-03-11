@@ -1,27 +1,44 @@
 ﻿[
   {
-    "trigger_name": "article_media_updated_at",
+    "schema_name": "auth",
+    "table_name": "users",
+    "trigger_name": "on_auth_user_created",
+    "trigger_definition": "CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user()"
+  },
+  {
+    "schema_name": "public",
     "table_name": "article_media",
+    "trigger_name": "article_media_updated_at",
     "trigger_definition": "CREATE TRIGGER article_media_updated_at BEFORE UPDATE ON public.article_media FOR EACH ROW EXECUTE FUNCTION update_timestamp_column()"
   },
   {
-    "trigger_name": "article_metadata_updated_at",
+    "schema_name": "public",
     "table_name": "article_metadata",
+    "trigger_name": "article_metadata_updated_at",
     "trigger_definition": "CREATE TRIGGER article_metadata_updated_at BEFORE UPDATE ON public.article_metadata FOR EACH ROW EXECUTE FUNCTION update_timestamp_column()"
   },
   {
-    "trigger_name": "articles_updated_at",
+    "schema_name": "public",
     "table_name": "articles",
+    "trigger_name": "articles_updated_at",
     "trigger_definition": "CREATE TRIGGER articles_updated_at BEFORE UPDATE ON public.articles FOR EACH ROW EXECUTE FUNCTION update_timestamp_column()"
   },
   {
-    "trigger_name": "download_files_updated_at",
+    "schema_name": "public",
     "table_name": "download_files",
+    "trigger_name": "download_files_updated_at",
     "trigger_definition": "CREATE TRIGGER download_files_updated_at BEFORE UPDATE ON public.download_files FOR EACH ROW EXECUTE FUNCTION update_timestamp_column()"
   },
   {
-    "trigger_name": "users_updated_at",
+    "schema_name": "public",
+    "table_name": "favorites",
+    "trigger_name": "favorites_updated_at",
+    "trigger_definition": "CREATE TRIGGER favorites_updated_at BEFORE UPDATE ON public.favorites FOR EACH ROW EXECUTE FUNCTION update_timestamp_column()"
+  },
+  {
+    "schema_name": "public",
     "table_name": "users",
+    "trigger_name": "users_updated_at",
     "trigger_definition": "CREATE TRIGGER users_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION update_timestamp_column()"
   }
 ]

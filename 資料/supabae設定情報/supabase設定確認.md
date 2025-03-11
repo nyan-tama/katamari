@@ -117,18 +117,23 @@ ORDER BY
 
 -- 7. トリガーの確認
 SELECT
-  trig.tgname AS trigger_name,
+  n.nspname AS schema_name,
   tab.relname AS table_name,
+  trig.tgname AS trigger_name,
   pg_get_triggerdef(trig.oid) AS trigger_definition
 FROM
   pg_trigger trig
 JOIN
   pg_class tab ON trig.tgrelid = tab.oid
+JOIN
+  pg_namespace n ON tab.relnamespace = n.oid
 WHERE
-  tab.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+  n.nspname IN ('public', 'auth')
   AND NOT trig.tgisinternal
 ORDER BY
-  tab.relname, trig.tgname;
+  n.nspname,
+  tab.relname,
+  trig.tgname;
 
 
 -- 8. テーブルの列情報の確認

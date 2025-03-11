@@ -98,6 +98,34 @@
     "with_check_expression": "(EXISTS ( SELECT 1\n   FROM articles\n  WHERE ((articles.id = download_files.article_id) AND (articles.author_id = auth.uid()))))"
   },
   {
+    "table_name": "favorites",
+    "policy_name": "お気に入りはユーザーに準じる",
+    "command": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (users.id = favorites.user_id)))",
+    "with_check_expression": null
+  },
+  {
+    "table_name": "favorites",
+    "policy_name": "お気に入りはユーザーのみ削除可能",
+    "command": "DELETE",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (users.id = favorites.user_id)))",
+    "with_check_expression": null
+  },
+  {
+    "table_name": "favorites",
+    "policy_name": "お気に入りはユーザーのみ追加可能",
+    "command": "INSERT",
+    "using_expression": null,
+    "with_check_expression": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (users.id = favorites.user_id)))"
+  },
+  {
+    "table_name": "favorites",
+    "policy_name": "お気に入りは記事に準じる",
+    "command": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM articles\n  WHERE (articles.id = favorites.article_id)))",
+    "with_check_expression": null
+  },
+  {
     "table_name": "users",
     "policy_name": "ユーザー情報は全体に公開",
     "command": "SELECT",

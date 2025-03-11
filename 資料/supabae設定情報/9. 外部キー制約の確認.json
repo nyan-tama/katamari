@@ -27,15 +27,6 @@
     "update_rule": "NO ACTION"
   },
   {
-    "constraint_name": "articles_author_id_fkey",
-    "table_name": "articles",
-    "column_name": "author_id",
-    "foreign_table_name": "users",
-    "foreign_column_name": "id",
-    "delete_rule": "CASCADE",
-    "update_rule": "NO ACTION"
-  },
-  {
     "constraint_name": "fk_articles_hero_image",
     "table_name": "articles",
     "column_name": "hero_image_id",
@@ -49,6 +40,24 @@
     "table_name": "download_files",
     "column_name": "article_id",
     "foreign_table_name": "articles",
+    "foreign_column_name": "id",
+    "delete_rule": "CASCADE",
+    "update_rule": "NO ACTION"
+  },
+  {
+    "constraint_name": "favorites_article_id_fkey",
+    "table_name": "favorites",
+    "column_name": "article_id",
+    "foreign_table_name": "articles",
+    "foreign_column_name": "id",
+    "delete_rule": "CASCADE",
+    "update_rule": "NO ACTION"
+  },
+  {
+    "constraint_name": "favorites_user_id_fkey",
+    "table_name": "favorites",
+    "column_name": "user_id",
+    "foreign_table_name": "users",
     "foreign_column_name": "id",
     "delete_rule": "CASCADE",
     "update_rule": "NO ACTION"

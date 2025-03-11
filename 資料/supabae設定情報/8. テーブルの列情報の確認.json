@@ -424,6 +424,46 @@
     "character_maximum_length": null
   },
   {
+    "table_name": "favorites",
+    "column_name": "id",
+    "data_type": "uuid",
+    "column_default": "uuid_generate_v4()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "favorites",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "favorites",
+    "column_name": "article_id",
+    "data_type": "uuid",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "favorites",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "column_default": "now()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "favorites",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "column_default": "now()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
     "table_name": "users",
     "column_name": "id",
     "data_type": "uuid",
@@ -514,6 +554,14 @@
   {
     "table_name": "users",
     "column_name": "github_url",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "default_avatar_url",
     "data_type": "text",
     "column_default": null,
     "is_nullable": "YES",
