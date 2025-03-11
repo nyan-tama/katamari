@@ -1,0 +1,158 @@
+﻿[
+  {
+    "schemaname": "auth",
+    "tablename": "audit_log_entries",
+    "rowsecurity": "true",
+    "tableowner": "supabase_auth_admin"
+  },
+  {
+    "schemaname": "auth",
+    "tablename": "flow_state",
+    "rowsecurity": "true",
+    "tableowner": "supabase_auth_admin"
+  },
+  {
+    "schemaname": "auth",
+    "tablename": "identities",
+    "rowsecurity": "true",
+    "tableowner": "supabase_auth_admin"
+  },
+  {
+    "schemaname": "auth",
+    "tablename": "instances",
+    "rowsecurity": "true",
+    "tableowner": "supabase_auth_admin"
+  },
+  {
+    "schemaname": "auth",
+    "tablename": "mfa_amr_claims",
+    "rowsecurity": "true",
+    "tableowner": "supabase_auth_admin"
+  },
+  {
+    "schemaname": "auth",
+    "tablename": "mfa_challenges",
+    "rowsecurity": "true",
+    "tableowner": "supabase_auth_admin"
+  },
+  {
+    "schemaname": "auth",
+    "tablename": "mfa_factors",
+    "rowsecurity": "true",
+    "tableowner": "supabase_auth_admin"
+  },
+  {
+    "schemaname": "auth",
+    "tablename": "one_time_tokens",
+    "rowsecurity": "true",
+    "tableowner": "supabase_auth_admin"
+  },
+  {
+    "schemaname": "auth",
+    "tablename": "refresh_tokens",
+    "rowsecurity": "true",
+    "tableowner": "supabase_auth_admin"
+  },
+  {
+    "schemaname": "auth",
+    "tablename": "saml_providers",
+    "rowsecurity": "true",
+    "tableowner": "supabase_auth_admin"
+  },
+  {
+    "schemaname": "auth",
+    "tablename": "saml_relay_states",
+    "rowsecurity": "true",
+    "tableowner": "supabase_auth_admin"
+  },
+  {
+    "schemaname": "auth",
+    "tablename": "schema_migrations",
+    "rowsecurity": "true",
+    "tableowner": "supabase_auth_admin"
+  },
+  {
+    "schemaname": "auth",
+    "tablename": "sessions",
+    "rowsecurity": "true",
+    "tableowner": "supabase_auth_admin"
+  },
+  {
+    "schemaname": "auth",
+    "tablename": "sso_domains",
+    "rowsecurity": "true",
+    "tableowner": "supabase_auth_admin"
+  },
+  {
+    "schemaname": "auth",
+    "tablename": "sso_providers",
+    "rowsecurity": "true",
+    "tableowner": "supabase_auth_admin"
+  },
+  {
+    "schemaname": "auth",
+    "tablename": "users",
+    "rowsecurity": "true",
+    "tableowner": "supabase_auth_admin"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "article_media",
+    "rowsecurity": "true",
+    "tableowner": "postgres"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "article_metadata",
+    "rowsecurity": "true",
+    "tableowner": "postgres"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "articles",
+    "rowsecurity": "true",
+    "tableowner": "postgres"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "download_files",
+    "rowsecurity": "true",
+    "tableowner": "postgres"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "users",
+    "rowsecurity": "true",
+    "tableowner": "postgres"
+  },
+  {
+    "schemaname": "storage",
+    "tablename": "buckets",
+    "rowsecurity": "true",
+    "tableowner": "supabase_storage_admin"
+  },
+  {
+    "schemaname": "storage",
+    "tablename": "migrations",
+    "rowsecurity": "true",
+    "tableowner": "supabase_storage_admin"
+  },
+  {
+    "schemaname": "storage",
+    "tablename": "objects",
+    "rowsecurity": "true",
+    "tableowner": "supabase_storage_admin"
+  },
+  {
+    "schemaname": "storage",
+    "tablename": "s3_multipart_uploads",
+    "rowsecurity": "true",
+    "tableowner": "supabase_storage_admin"
+  },
+  {
+    "schemaname": "storage",
+    "tablename": "s3_multipart_uploads_parts",
+    "rowsecurity": "true",
+    "tableowner": "supabase_storage_admin"
+  }
+]

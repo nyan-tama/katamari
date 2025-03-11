@@ -35,34 +35,40 @@ export interface Database {
                     updated_at?: string
                 }
             }
-            models: {
+            articles: {
                 Row: {
                     id: string
-                    user_id: string
+                    author_id: string
                     title: string
-                    description: string | null
-                    file_url: string
-                    thumbnail_url: string | null
+                    content: string
+                    hero_image: string | null
+                    status: string
+                    view_count: number
+                    download_count: number
                     created_at: string
                     updated_at: string
                 }
                 Insert: {
                     id?: string
-                    user_id: string
+                    author_id: string
                     title: string
-                    description?: string | null
-                    file_url: string
-                    thumbnail_url?: string | null
+                    content: string
+                    hero_image?: string | null
+                    status?: string
+                    view_count?: number
+                    download_count?: number
                     created_at?: string
                     updated_at?: string
                 }
                 Update: {
                     id?: string
-                    user_id?: string
+                    author_id?: string
                     title?: string
-                    description?: string | null
-                    file_url?: string
-                    thumbnail_url?: string | null
+                    content?: string
+                    hero_image?: string | null
+                    status?: string
+                    view_count?: number
+                    download_count?: number
                     created_at?: string
                     updated_at?: string
                 }

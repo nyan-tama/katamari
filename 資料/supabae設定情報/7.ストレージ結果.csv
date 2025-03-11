@@ -1,4 +1,0 @@
-﻿"id","name","owner","created_at","updated_at","public","avif_autodetection","file_size_limit","allowed_mime_types","owner_id"
-"avatars","avatars","null","2025-03-07 07:42:52.900271+00","2025-03-07 07:42:52.900271+00","true","false","5242880","["image/png","image/jpeg","image/gif","image/webp","image/svg+xml"]","null"
-"media","media","null","2025-03-07 07:42:52.900271+00","2025-03-07 07:42:52.900271+00","true","false","52428800","null","null"
-"files","files","null","2025-03-07 07:42:52.900271+00","2025-03-07 07:42:52.900271+00","true","false","104857600","null","null"

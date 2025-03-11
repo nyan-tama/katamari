@@ -30,7 +30,7 @@
 | `/api/articles/user/[userId]` | GET | 特定ユーザーの記事一覧取得 | 条件付き | ✅ 実装済み |
 | `/api/storage/upload` | POST | ファイルのアップロード | 必須 | ✅ 実装済み |
 | `/api/media/upload` | POST | 記事用メディアのアップロード | 必須 | ❌ 実装予定 |
-| `/api/files/upload` | POST | 記事添付ファイルのアップロード | 必須 | ❌ 実装予定 |
+| `/api/download_files/upload` | POST | 記事添付ファイルのアップロード | 必須 | ❌ 実装予定 |
 | `/api/preview/3d` | POST | 3Dモデルのプレビュー生成 | 必須 | ❌ 実装予定 |
 | `/api/search` | GET | 記事検索 | 不要 | ❌ フェーズ2で実装予定 |
 | `/api/favorites/[articleId]` | POST | 記事へのお気に入り登録/解除 | 必須 | ❌ フェーズ2で実装予定 |
@@ -110,7 +110,7 @@ TipTapエディタを使用し、以下の機能を提供します：
 
 #### 2.1.4 ファイルアップロードAPI
 
-##### `/api/files/upload` エンドポイント詳細
+##### `/api/download_files/upload` エンドポイント詳細
 
 **リクエスト**:
 ```json
@@ -148,7 +148,7 @@ TipTapエディタを使用し、以下の機能を提供します：
 
 #### 2.1.5 複数ファイルの一括アップロード
 
-フォルダ構造を維持したまま複数ファイルをアップロードするために、クライアント側でフォルダツリーを解析し、各ファイルを適切な相対パスで`/api/files/upload`エンドポイントに送信します。
+フォルダ構造を維持したまま複数ファイルをアップロードするために、クライアント側でフォルダツリーを解析し、各ファイルを適切な相対パスで`/api/download_files/upload`エンドポイントに送信します。
 
 ```javascript
 // フォルダ構造を維持したアップロード処理の例
@@ -877,7 +877,7 @@ export async function POST(request: Request) {
 ### 4.4 ファイルアップロードAPI
 
 ```typescript
-// app/api/files/upload/route.ts
+// app/api/download_files/upload/route.ts
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
@@ -965,7 +965,7 @@ sequenceDiagram
     participant FE as フロントエンド
     participant Next as Next.js Server
     participant Media as /api/media/upload
-    participant Files as /api/files/upload
+    participant Files as /api/download_files/upload
     participant API as /api/articles
     participant SupaDB as Supabase DB
     participant SupaSt as Supabase Storage
@@ -1061,7 +1061,7 @@ sequenceDiagram
     participant FE as フロントエンド
     participant FSA as FileSystem API
     participant Upload as アップロードモジュール
-    participant Files as /api/files/upload
+    participant Files as /api/download_files/upload
     participant SupaDB as Supabase DB
     participant SupaSt as Supabase Storage
     
