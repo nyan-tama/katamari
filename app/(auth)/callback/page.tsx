@@ -10,55 +10,40 @@ export default function AuthCallbackPage() {
     useEffect(() => {
         const handleAuthCallback = async () => {
             try {
-                console.log('認証コールバック処理開始');
                 const supabase = createClientSupabase();
-                
-                // URLからハッシュパラメータを取得（Implicitフロー）
-                const hashParams = new URLSearchParams(window.location.hash.substring(1));
-                const accessToken = hashParams.get('access_token');
-                
-                console.log('アクセストークン取得状態:', accessToken ? 'あり' : 'なし');
-                
+
                 // URLからクエリパラメータを取得（Authorizationコードフロー）
                 const { searchParams } = new URL(window.location.href);
                 const code = searchParams.get('code');
-                
-                console.log('認証コード取得状態:', code ? 'あり' : 'なし');
-                
-                // Implicitフロー（ハッシュパラメータ）を優先
-                if (accessToken) {
-                    console.log('Implicitフローでの認証処理');
-                    // accessTokenを使ってユーザー情報を取得
-                    const { data, error } = await supabase.auth.getUser(accessToken);
-                    
-                    if (error) {
-                        console.error('ユーザー情報取得エラー:', error);
-                        throw error;
+
+                // codeパラメータがない場合は既に認証完了している可能性がある
+                if (!code) {
+                    router.push('/');
+                    return;
+                }
+
+                // Authorization Code フロー
+                const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+                if (error) {
+                    // セッションが既に有効な場合のエラーは無視
+                    if (error.message?.includes('invalid request') || error.message?.includes('code verifier')) {
+                        // セッション確認
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (session) {
+                            router.push('/');
+                            return;
+                        }
                     }
-                    
-                    console.log('認証されたユーザー情報:', data.user);
-                } 
-                // Authorization Code フロー（code を使用）
-                else if (code) {
-                    console.log('Authorization Codeフローでの認証処理');
-                    // codeをセッションと交換
-                    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-                    
-                    if (error) {
-                        console.error('セッション交換エラー:', error);
-                        throw error;
-                    }
-                    
-                    console.log('認証されたユーザー情報:', data.user);
-                } else {
-                    throw new Error('認証情報が見つかりません（アクセストークンも認証コードもありません）');
+
+                    // 正常なエラーケース以外の場合のみスロー
+                    throw error;
                 }
 
                 // ログイン成功時にホームにリダイレクト
-                console.log('認証成功、ホームページへリダイレクト');
                 router.push('/');
             } catch (error) {
-                console.error('Error handling auth callback:', error);
+                // 致命的なエラーのみログに記録
                 router.push('/login?error=auth-callback-error');
             }
         };

@@ -5,6 +5,7 @@ const nextConfig = {
             'nextjs.org',
             'oshpdiqwxbryvcmhonts.supabase.co',
             'dhvkmwrudleimrzppamd.supabase.co',
+            'lh3.googleusercontent.com',
             'jp.store.bambulab.com',
             'katamari.jp'
         ],
