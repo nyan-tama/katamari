@@ -42,7 +42,7 @@ export default function AuthCallbackPage() {
 
                 // ログイン成功時にホームにリダイレクト
                 router.push('/');
-            } catch (error) {
+            } catch {
                 // 致命的なエラーのみログに記録
                 router.push('/login?error=auth-callback-error');
             }
