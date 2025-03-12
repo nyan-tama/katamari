@@ -24,6 +24,7 @@ interface User {
   id: string;
   name: string;
   avatar_url: string | null;
+  default_avatar_url?: string | null;
 }
 
 // 日付フォーマットヘルパー関数
@@ -194,20 +195,28 @@ export default async function Home() {
                     {article.title}
                   </h3>
                   <div className="flex items-center mt-2">
-                    <div className="w-6 h-6 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
-                      {authorsMap[article.author_id]?.avatar_url ? (
+                    <div className="w-6 h-6 bg-gray-200 rounded-full overflow-hidden flex-shrink-0 border border-gray-300 shadow-sm">
+                      {authorsMap[article.author_id]?.avatar_url || authorsMap[article.author_id]?.default_avatar_url ? (
                         <Image
-                          src={authorsMap[article.author_id]?.avatar_url?.startsWith('http')
-                            ? authorsMap[article.author_id]?.avatar_url || ''
-                            : getPublicUrl('avatars', authorsMap[article.author_id]?.avatar_url || '')}
+                          src={
+                            // default_avatar_urlを優先（GoogleやGitHubのアバターなど）
+                            authorsMap[article.author_id]?.default_avatar_url?.startsWith('http')
+                              ? authorsMap[article.author_id]?.default_avatar_url || ''
+                              : authorsMap[article.author_id]?.default_avatar_url
+                                ? getPublicUrl('avatars', authorsMap[article.author_id]?.default_avatar_url || '')
+                                // avatar_urlを次に確認
+                                : authorsMap[article.author_id]?.avatar_url?.startsWith('http')
+                                  ? authorsMap[article.author_id]?.avatar_url || ''
+                                  : getPublicUrl('avatars', authorsMap[article.author_id]?.avatar_url || '')
+                          }
                           alt={authorsMap[article.author_id]?.name || '不明なユーザー'}
                           width={24}
                           height={24}
-                          className="object-cover"
+                          className="object-cover w-full h-full"
                           unoptimized={true}
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">
+                        <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs bg-gray-100 border border-gray-300">
                           {authorsMap[article.author_id]?.name?.charAt(0).toUpperCase() || 'U'}
                         </div>
                       )}
@@ -216,10 +225,6 @@ export default async function Home() {
                   </div>
                   <div className="flex justify-between mt-1">
                     <p className="text-xs text-gray-500">{formatDate(article.created_at)}</p>
-                    <div className="flex space-x-2 text-xs text-gray-500">
-                      <span>👁️ {article.view_count}</span>
-                      <span>⬇️ {article.download_count}</span>
-                    </div>
                   </div>
                 </div>
               </div>
