@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   try {
     // URLからファイルIDを取得
     const fileId = request.nextUrl.searchParams.get('fileId');
-    
+
     if (!fileId) {
       return NextResponse.json({ error: 'ファイルIDが指定されていません' }, { status: 400 });
     }
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
     const response = new NextResponse(fileData);
     response.headers.set('Content-Disposition', `attachment; filename="${file.filename}"`);
     response.headers.set('Content-Type', 'application/octet-stream');
-    
+
     return response;
   } catch (error) {
     console.error('ダウンロード処理中にエラーが発生しました:', error);

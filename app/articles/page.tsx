@@ -9,7 +9,8 @@ import Image from 'next/image';
 interface Article {
   id: string;
   title: string;
-  hero_image: string | null;
+  hero_image_id: string | null;
+  hero_image_url?: string | null; // 取得したURLを保存するための追加フィールド
   created_at: string;
   author_id: string;
   view_count: number;
@@ -29,9 +30,9 @@ function ArticleCard({ article, author }: { article: Article; author: Author }) 
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
       {/* ヒーロー画像 */}
       <div className="aspect-w-16 aspect-h-9">
-        {article.hero_image ? (
+        {article.hero_image_url ? (
           <Image
-            src={article.hero_image}
+            src={article.hero_image_url}
             alt={article.title}
             width={600}
             height={338}
@@ -94,7 +95,7 @@ function ArticleCard({ article, author }: { article: Article; author: Author }) 
 
 export default async function ArticlesPage() {
   const supabase = createServerComponentClient({ cookies });
-  
+
   // 公開されている記事を取得
   const { data: articles, error } = await supabase
     .from('articles')
@@ -105,6 +106,50 @@ export default async function ArticlesPage() {
   if (error) {
     console.error('記事の取得に失敗しました:', error);
     return <div>記事の読み込み中にエラーが発生しました。</div>;
+  }
+
+  // ヒーロー画像の情報を取得
+  const articleIds = articles.filter(a => a.hero_image_id).map(a => a.hero_image_id);
+
+  if (articleIds.length > 0) {
+    const { data: mediaData, error: mediaError } = await supabase
+      .from('article_media')
+      .select('*')
+      .in('id', articleIds);
+
+    if (!mediaError && mediaData) {
+      // メディア情報をマッピング
+      const mediaMap = mediaData.reduce((acc, media) => {
+        acc[media.id] = media;
+        return acc;
+      }, {} as Record<string, {
+        id: string;
+        storage_bucket: string;
+        storage_path: string;
+        [key: string]: unknown;
+      }>);
+
+      // 記事データにヒーロー画像URLを追加
+      articles.forEach(article => {
+        if (article.hero_image_id && mediaMap[article.hero_image_id]) {
+          const media = mediaMap[article.hero_image_id];
+
+          // ストレージパスを適切にエンコード
+          const encodedPath = media.storage_path
+            .split('/')
+            .map((segment: string) => encodeURIComponent(segment))
+            .join('/');
+
+          const { data } = supabase.storage
+            .from(media.storage_bucket)
+            .getPublicUrl(encodedPath);
+
+          article.hero_image_url = data.publicUrl;
+        }
+      });
+    } else if (mediaError) {
+      console.error('ヒーロー画像の取得に失敗しました:', mediaError);
+    }
   }
 
   // 著者情報を取得

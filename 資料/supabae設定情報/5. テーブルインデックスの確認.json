@@ -1,0 +1,97 @@
+﻿[
+  {
+    "index_name": "article_media_pkey",
+    "table_name": "article_media",
+    "column_names": "id"
+  },
+  {
+    "index_name": "idx_article_media_article_id",
+    "table_name": "article_media",
+    "column_names": "article_id"
+  },
+  {
+    "index_name": "idx_article_media_bucket",
+    "table_name": "article_media",
+    "column_names": "storage_bucket"
+  },
+  {
+    "index_name": "idx_article_media_type",
+    "table_name": "article_media",
+    "column_names": "media_type"
+  },
+  {
+    "index_name": "article_metadata_pkey",
+    "table_name": "article_metadata",
+    "column_names": "article_id"
+  },
+  {
+    "index_name": "articles_pkey",
+    "table_name": "articles",
+    "column_names": "id"
+  },
+  {
+    "index_name": "idx_articles_author_id",
+    "table_name": "articles",
+    "column_names": "author_id"
+  },
+  {
+    "index_name": "idx_articles_content_trgm",
+    "table_name": "articles",
+    "column_names": "content"
+  },
+  {
+    "index_name": "idx_articles_status",
+    "table_name": "articles",
+    "column_names": "status"
+  },
+  {
+    "index_name": "idx_articles_title_trgm",
+    "table_name": "articles",
+    "column_names": "title"
+  },
+  {
+    "index_name": "download_files_pkey",
+    "table_name": "download_files",
+    "column_names": "id"
+  },
+  {
+    "index_name": "idx_download_files_article_id",
+    "table_name": "download_files",
+    "column_names": "article_id"
+  },
+  {
+    "index_name": "idx_download_files_type",
+    "table_name": "download_files",
+    "column_names": "file_type"
+  },
+  {
+    "index_name": "favorites_pkey",
+    "table_name": "favorites",
+    "column_names": "id"
+  },
+  {
+    "index_name": "favorites_user_id_article_id_key",
+    "table_name": "favorites",
+    "column_names": "article_id, user_id"
+  },
+  {
+    "index_name": "idx_favorites_article_id",
+    "table_name": "favorites",
+    "column_names": "article_id"
+  },
+  {
+    "index_name": "idx_favorites_user_id",
+    "table_name": "favorites",
+    "column_names": "user_id"
+  },
+  {
+    "index_name": "users_email_key",
+    "table_name": "users",
+    "column_names": "email"
+  },
+  {
+    "index_name": "users_pkey",
+    "table_name": "users",
+    "column_names": "id"
+  }
+]

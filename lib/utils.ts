@@ -4,6 +4,6 @@ export function getAbsoluteUrl(path: string): string {
 }
 
 // 使用例：ソーシャルシェアリンクの生成
-export function getShareUrl(modelId: string): string {
-    return getAbsoluteUrl(`/models/${modelId}`)
+export function getShareUrl(articleId: string): string {
+    return getAbsoluteUrl(`/articles/${articleId}`)
 } 

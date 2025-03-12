@@ -1,127 +1,176 @@
-
-## テーブル定義確認
+-- 1. テーブル一覧の確認
 SELECT 
-  tablename,
-  rowsecurity
+  n.nspname AS schemaname,
+  c.relname AS tablename,
+  CASE WHEN c.relrowsecurity THEN 'true' ELSE 'false' END AS rowsecurity,
+  a.rolname AS tableowner
 FROM 
-  pg_tables;
-
-## ポリシーの確認
-SELECT
-  schemaname,
-  tablename,
-  policyname,
-  roles,
-  cmd,
-  qual,
-  with_check
-FROM
-  pg_policies
-WHERE
-  schemaname = 'public'
-ORDER BY
-  tablename, policyname;
-
-
-## インデックス確認
-SELECT 
-  table_schema,
-  table_name,
-  column_name,
-  data_type,
-  is_nullable,
-  column_default
-FROM 
-  information_schema.columns
+  pg_class c
+JOIN 
+  pg_namespace n ON c.relnamespace = n.oid
+JOIN 
+  pg_authid a ON c.relowner = a.oid
 WHERE 
-  table_schema = 'public'
+  c.relkind = 'r' AND 
+  n.nspname IN ('public', 'auth', 'storage')
 ORDER BY 
-  table_schema, 
-  table_name, 
-  ordinal_position;
+  n.nspname, c.relname;
 
--- インデックス定義を取得
-SELECT
-  i.relname as index_name,
-  t.relname as table_name,
-  array_to_string(array_agg(a.attname), ', ') as column_names
-FROM
-  pg_class t,
-  pg_class i,
-  pg_index ix,
-  pg_attribute a
-WHERE
-  t.oid = ix.indrelid
-  and i.oid = ix.indexrelid
-  and a.attrelid = t.oid
-  and a.attnum = ANY(ix.indkey)
-  and t.relkind = 'r'
-  and t.relnamespace in (select oid from pg_namespace where nspname = 'public')
-GROUP BY
-  i.relname,
-  t.relname
-ORDER BY
-  t.relname,
-  i.relname;
+-- 2. ストレージバケットの確認
+SELECT 
+  id, 
+  name,
+  public,
+  file_size_limit,
+  allowed_mime_types,
+  created_at,
+  updated_at
+FROM 
+  storage.buckets
+ORDER BY 
+  created_at;
 
-## 関数の定義を確認
+-- 3. すべてのテーブルポリシーの確認
 SELECT
-  n.nspname as schema,
-  p.proname as name,
-  pg_get_functiondef(p.oid) as definition
+  tab.relname AS table_name,
+  pol.polname AS policy_name,
+  CASE
+    WHEN pol.polcmd = 'r' THEN 'SELECT'
+    WHEN pol.polcmd = 'a' THEN 'INSERT'
+    WHEN pol.polcmd = 'w' THEN 'UPDATE'
+    WHEN pol.polcmd = 'd' THEN 'DELETE'
+    WHEN pol.polcmd = '*' THEN 'ALL'
+  END AS command,
+  pg_get_expr(pol.polqual, pol.polrelid) AS using_expression,
+  pg_get_expr(pol.polwithcheck, pol.polrelid) AS with_check_expression
 FROM
-  pg_proc p
-  LEFT JOIN pg_namespace n ON p.pronamespace = n.oid
+  pg_policy pol
+JOIN
+  pg_class tab ON pol.polrelid = tab.oid
+JOIN
+  pg_namespace n ON tab.relnamespace = n.oid
 WHERE
   n.nspname = 'public'
 ORDER BY
-  schema, name;
+  tab.relname, pol.polname;
 
-
-## テーブルの列定義詳細
-SELECT 
-  table_name,
-  column_name,
-  data_type,
-  character_maximum_length,
-  column_default,
-  is_nullable
-FROM 
-  information_schema.columns
-WHERE 
-  table_schema = 'public'
-ORDER BY 
-  table_name, ordinal_position;
-
-
-## トリガー情報
+-- 4. ストレージポリシーの確認
 SELECT
-  tgname AS trigger_name,
-  relname AS table_name,
-  pg_get_triggerdef(t.oid) AS trigger_definition
+  pol.polname AS policy_name,
+  tab.relname AS table_name,
+  CASE
+    WHEN pol.polcmd = 'r' THEN 'SELECT'
+    WHEN pol.polcmd = 'a' THEN 'INSERT'
+    WHEN pol.polcmd = 'w' THEN 'UPDATE'
+    WHEN pol.polcmd = 'd' THEN 'DELETE'
+    WHEN pol.polcmd = '*' THEN 'ALL'
+  END AS command,
+  pg_get_expr(pol.polqual, pol.polrelid) AS using_expression,
+  pg_get_expr(pol.polwithcheck, pol.polrelid) AS with_check_expression
 FROM
-  pg_trigger t
-  JOIN pg_class c ON t.tgrelid = c.oid
-  JOIN pg_namespace n ON c.relnamespace = n.oid
+  pg_policy pol
+JOIN
+  pg_class tab ON pol.polrelid = tab.oid
 WHERE
-  n.nspname = 'public';
+  tab.relname = 'objects' AND tab.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'storage')
+ORDER BY
+  policy_name;
 
 
-## ストレージバケットの情報
-SELECT * FROM storage.buckets;
-
-
-## ストレージポリシーの確認
+-- 5. テーブルインデックスの確認
 SELECT
-  n.nspname as schema,
-  p.proname as name,
-  pg_get_functiondef(p.oid) as definition
+  i.relname AS index_name,
+  t.relname AS table_name,
+  array_to_string(array_agg(a.attname ORDER BY k.indnatts), ', ') AS column_names
+FROM
+  pg_index k
+JOIN
+  pg_class i ON i.oid = k.indexrelid
+JOIN
+  pg_class t ON t.oid = k.indrelid
+JOIN
+  pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(k.indkey)
+WHERE
+  t.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+GROUP BY
+  i.relname, t.relname
+ORDER BY
+  t.relname, i.relname;
+
+
+
+-- 6. 関数の確認
+SELECT
+  n.nspname AS schema_name,
+  p.proname AS function_name,
+  pg_get_functiondef(p.oid) AS function_definition
 FROM
   pg_proc p
-  LEFT JOIN pg_namespace n ON p.pronamespace = n.oid
+JOIN
+  pg_namespace n ON p.pronamespace = n.oid
 WHERE
-  n.nspname = 'storage'
-  OR p.proname LIKE '%policy%'
-  OR p.proname LIKE '%bucket%'
+  n.nspname = 'public'
+  AND p.prokind = 'f'
 ORDER BY
-  schema, name;
+  schema_name, function_name;
+
+
+-- 7. トリガーの確認
+SELECT
+  n.nspname AS schema_name,
+  tab.relname AS table_name,
+  trig.tgname AS trigger_name,
+  pg_get_triggerdef(trig.oid) AS trigger_definition
+FROM
+  pg_trigger trig
+JOIN
+  pg_class tab ON trig.tgrelid = tab.oid
+JOIN
+  pg_namespace n ON tab.relnamespace = n.oid
+WHERE
+  n.nspname IN ('public', 'auth')
+  AND NOT trig.tgisinternal
+ORDER BY
+  n.nspname,
+  tab.relname,
+  trig.tgname;
+
+
+-- 8. テーブルの列情報の確認
+SELECT
+  t.table_name,
+  c.column_name,
+  c.data_type,
+  c.column_default,
+  c.is_nullable,
+  c.character_maximum_length
+FROM
+  information_schema.tables t
+JOIN
+  information_schema.columns c ON t.table_name = c.table_name
+WHERE
+  t.table_schema = 'public'
+  AND c.table_schema = 'public'
+ORDER BY
+  t.table_name, c.ordinal_position;
+
+
+-- 9. 外部キー制約の確認
+SELECT
+  tc.constraint_name,
+  tc.table_name,
+  kcu.column_name,
+  ccu.table_name AS foreign_table_name,
+  ccu.column_name AS foreign_column_name,
+  rc.delete_rule,
+  rc.update_rule
+FROM
+  information_schema.table_constraints tc
+JOIN
+  information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
+JOIN
+  information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name
+JOIN
+  information_schema.referential_constraints rc ON tc.constraint_name = rc.constraint_name
+WHERE
+  tc.constraint_type = 'FOREIGN KEY'

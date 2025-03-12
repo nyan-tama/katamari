@@ -1,0 +1,142 @@
+﻿[
+  {
+    "table_name": "article_media",
+    "policy_name": "公開記事のメディアは全体に公開",
+    "command": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM articles\n  WHERE ((articles.id = article_media.article_id) AND ((articles.status = 'published'::text) OR (articles.author_id = auth.uid())))))",
+    "with_check_expression": null
+  },
+  {
+    "table_name": "article_media",
+    "policy_name": "自分の記事のメディアのみ削除可能",
+    "command": "DELETE",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM articles\n  WHERE ((articles.id = article_media.article_id) AND (articles.author_id = auth.uid()))))",
+    "with_check_expression": null
+  },
+  {
+    "table_name": "article_media",
+    "policy_name": "自分の記事のメディアのみ更新可能",
+    "command": "UPDATE",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM articles\n  WHERE ((articles.id = article_media.article_id) AND (articles.author_id = auth.uid()))))",
+    "with_check_expression": null
+  },
+  {
+    "table_name": "article_media",
+    "policy_name": "自分の記事のメディアのみ追加可能",
+    "command": "INSERT",
+    "using_expression": null,
+    "with_check_expression": "(EXISTS ( SELECT 1\n   FROM articles\n  WHERE ((articles.id = article_media.article_id) AND (articles.author_id = auth.uid()))))"
+  },
+  {
+    "table_name": "article_metadata",
+    "policy_name": "公開記事のメタデータは全体に公開",
+    "command": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM articles\n  WHERE ((articles.id = article_metadata.article_id) AND ((articles.status = 'published'::text) OR (articles.author_id = auth.uid())))))",
+    "with_check_expression": null
+  },
+  {
+    "table_name": "article_metadata",
+    "policy_name": "自分の記事のメタデータのみ更新可能",
+    "command": "ALL",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM articles\n  WHERE ((articles.id = article_metadata.article_id) AND (articles.author_id = auth.uid()))))",
+    "with_check_expression": null
+  },
+  {
+    "table_name": "articles",
+    "policy_name": "ユーザーは自分の記事のみ投稿可能",
+    "command": "INSERT",
+    "using_expression": null,
+    "with_check_expression": "(auth.uid() = author_id)"
+  },
+  {
+    "table_name": "articles",
+    "policy_name": "公開記事は全体に公開",
+    "command": "SELECT",
+    "using_expression": "((status = 'published'::text) OR (auth.uid() = author_id))",
+    "with_check_expression": null
+  },
+  {
+    "table_name": "articles",
+    "policy_name": "自分の記事のみ削除可能",
+    "command": "DELETE",
+    "using_expression": "(auth.uid() = author_id)",
+    "with_check_expression": null
+  },
+  {
+    "table_name": "articles",
+    "policy_name": "自分の記事のみ更新可能",
+    "command": "UPDATE",
+    "using_expression": "(auth.uid() = author_id)",
+    "with_check_expression": null
+  },
+  {
+    "table_name": "download_files",
+    "policy_name": "公開記事のダウンロードファイルは全体に公開",
+    "command": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM articles\n  WHERE ((articles.id = download_files.article_id) AND ((articles.status = 'published'::text) OR (articles.author_id = auth.uid())))))",
+    "with_check_expression": null
+  },
+  {
+    "table_name": "download_files",
+    "policy_name": "自分の記事のダウンロードファイルのみ削除可",
+    "command": "DELETE",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM articles\n  WHERE ((articles.id = download_files.article_id) AND (articles.author_id = auth.uid()))))",
+    "with_check_expression": null
+  },
+  {
+    "table_name": "download_files",
+    "policy_name": "自分の記事のダウンロードファイルのみ更新可",
+    "command": "UPDATE",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM articles\n  WHERE ((articles.id = download_files.article_id) AND (articles.author_id = auth.uid()))))",
+    "with_check_expression": null
+  },
+  {
+    "table_name": "download_files",
+    "policy_name": "自分の記事のダウンロードファイルのみ追加可",
+    "command": "INSERT",
+    "using_expression": null,
+    "with_check_expression": "(EXISTS ( SELECT 1\n   FROM articles\n  WHERE ((articles.id = download_files.article_id) AND (articles.author_id = auth.uid()))))"
+  },
+  {
+    "table_name": "favorites",
+    "policy_name": "お気に入りはユーザーに準じる",
+    "command": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (users.id = favorites.user_id)))",
+    "with_check_expression": null
+  },
+  {
+    "table_name": "favorites",
+    "policy_name": "お気に入りはユーザーのみ削除可能",
+    "command": "DELETE",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (users.id = favorites.user_id)))",
+    "with_check_expression": null
+  },
+  {
+    "table_name": "favorites",
+    "policy_name": "お気に入りはユーザーのみ追加可能",
+    "command": "INSERT",
+    "using_expression": null,
+    "with_check_expression": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (users.id = favorites.user_id)))"
+  },
+  {
+    "table_name": "favorites",
+    "policy_name": "お気に入りは記事に準じる",
+    "command": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM articles\n  WHERE (articles.id = favorites.article_id)))",
+    "with_check_expression": null
+  },
+  {
+    "table_name": "users",
+    "policy_name": "ユーザー情報は全体に公開",
+    "command": "SELECT",
+    "using_expression": "true",
+    "with_check_expression": null
+  },
+  {
+    "table_name": "users",
+    "policy_name": "自分のプロフィールのみ更新可能",
+    "command": "UPDATE",
+    "using_expression": "(auth.uid() = id)",
+    "with_check_expression": null
+  }
+]

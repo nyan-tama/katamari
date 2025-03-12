@@ -11,7 +11,7 @@ export default function LoginPage() {
         try {
             setLoading(true);
             const supabase = createClientSupabase();
-            
+
             // skipBrowserRedirectを使用して認証URLを取得し、手動でリダイレクト
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
@@ -22,7 +22,7 @@ export default function LoginPage() {
             });
 
             if (error) throw error;
-            
+
             if (data?.url) {
                 // 取得したURLに手動でリダイレクト
                 window.location.href = data.url;
@@ -42,7 +42,7 @@ export default function LoginPage() {
             <div className="max-w-md mx-auto bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="p-8">
                     <h2 className="text-2xl font-bold text-center text-gray-800 mb-8">
-                        カタワクへようこそ
+                        カタマリへようこそ
                     </h2>
 
                     <div className="space-y-4">

@@ -1,0 +1,610 @@
+﻿[
+  {
+    "table_name": "article_media",
+    "column_name": "id",
+    "data_type": "uuid",
+    "column_default": "uuid_generate_v4()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_media",
+    "column_name": "article_id",
+    "data_type": "uuid",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_media",
+    "column_name": "media_type",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_media",
+    "column_name": "file_extension",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_media",
+    "column_name": "processing_status",
+    "data_type": "text",
+    "column_default": "'pending'::text",
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_media",
+    "column_name": "parent_media_id",
+    "data_type": "uuid",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_media",
+    "column_name": "variant_type",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_media",
+    "column_name": "storage_bucket",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_media",
+    "column_name": "storage_path",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_media",
+    "column_name": "alt_text",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_media",
+    "column_name": "file_size",
+    "data_type": "integer",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_media",
+    "column_name": "width",
+    "data_type": "integer",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_media",
+    "column_name": "height",
+    "data_type": "integer",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_media",
+    "column_name": "media_role",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_media",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "column_default": "now()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_media",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "column_default": "now()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_metadata",
+    "column_name": "article_id",
+    "data_type": "uuid",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_metadata",
+    "column_name": "meta_title",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_metadata",
+    "column_name": "meta_description",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_metadata",
+    "column_name": "ai_generated_tags",
+    "data_type": "ARRAY",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_metadata",
+    "column_name": "ai_generated_summary",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_metadata",
+    "column_name": "structured_data",
+    "data_type": "jsonb",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_metadata",
+    "column_name": "seo_aspects",
+    "data_type": "jsonb",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_metadata",
+    "column_name": "seo_score",
+    "data_type": "integer",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_metadata",
+    "column_name": "indexing_control",
+    "data_type": "text",
+    "column_default": "'index,follow'::text",
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_metadata",
+    "column_name": "last_ai_analysis",
+    "data_type": "timestamp with time zone",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_metadata",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "column_default": "now()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "article_metadata",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "column_default": "now()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "articles",
+    "column_name": "id",
+    "data_type": "uuid",
+    "column_default": "uuid_generate_v4()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "articles",
+    "column_name": "author_id",
+    "data_type": "uuid",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "articles",
+    "column_name": "title",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "articles",
+    "column_name": "content",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "articles",
+    "column_name": "hero_image_id",
+    "data_type": "uuid",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "articles",
+    "column_name": "status",
+    "data_type": "text",
+    "column_default": "'draft'::text",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "articles",
+    "column_name": "view_count",
+    "data_type": "integer",
+    "column_default": "0",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "articles",
+    "column_name": "download_count",
+    "data_type": "integer",
+    "column_default": "0",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "articles",
+    "column_name": "has_3d_model",
+    "data_type": "boolean",
+    "column_default": "true",
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "articles",
+    "column_name": "content_format",
+    "data_type": "text",
+    "column_default": "'tiptap_v1'::text",
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "articles",
+    "column_name": "published_at",
+    "data_type": "timestamp with time zone",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "articles",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "column_default": "now()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "articles",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "column_default": "now()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "download_files",
+    "column_name": "id",
+    "data_type": "uuid",
+    "column_default": "uuid_generate_v4()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "download_files",
+    "column_name": "article_id",
+    "data_type": "uuid",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "download_files",
+    "column_name": "filename",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "download_files",
+    "column_name": "file_path",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "download_files",
+    "column_name": "parent_folder",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "download_files",
+    "column_name": "storage_bucket",
+    "data_type": "text",
+    "column_default": "'downloads'::text",
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "download_files",
+    "column_name": "file_size",
+    "data_type": "integer",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "download_files",
+    "column_name": "file_type",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "download_files",
+    "column_name": "file_extension",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "download_files",
+    "column_name": "is_3d_model",
+    "data_type": "boolean",
+    "column_default": "false",
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "download_files",
+    "column_name": "access_level",
+    "data_type": "text",
+    "column_default": "'public'::text",
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "download_files",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "column_default": "now()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "favorites",
+    "column_name": "id",
+    "data_type": "uuid",
+    "column_default": "uuid_generate_v4()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "favorites",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "favorites",
+    "column_name": "article_id",
+    "data_type": "uuid",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "favorites",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "column_default": "now()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "favorites",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "column_default": "now()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "id",
+    "data_type": "uuid",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "email",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "name",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "bio",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "website_url1",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "website_url2",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "website_url3",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "twitter_url",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "instagram_url",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "facebook_url",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "tiktok_url",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "github_url",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "default_avatar_url",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "avatar_storage_bucket",
+    "data_type": "text",
+    "column_default": "'avatars'::text",
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "avatar_storage_path",
+    "data_type": "text",
+    "column_default": null,
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "role",
+    "data_type": "text",
+    "column_default": "'user'::text",
+    "is_nullable": "YES",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "column_default": "now()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "column_default": "now()",
+    "is_nullable": "NO",
+    "character_maximum_length": null
+  }
+]

@@ -12,7 +12,8 @@ interface Article {
     id: string;
     title: string;
     content: string;
-    hero_image?: string;
+    hero_image_id?: string;
+    hero_image_url?: string;
     status: 'draft' | 'published';
     created_at: string;
     updated_at: string;
@@ -24,7 +25,21 @@ interface Article {
 interface UserProfile {
     id: string;
     name: string;
-    avatar_url: string | null;
+    email: string;
+    default_avatar_url: string | null;
+    bio: string | null;
+    website_url1: string | null;
+    website_url2: string | null;
+    website_url3: string | null;
+    avatar_storage_bucket: string | null;
+    avatar_storage_path: string | null;
+    twitter_url: string | null;
+    instagram_url: string | null;
+    facebook_url: string | null;
+    tiktok_url: string | null;
+    github_url: string | null;
+    created_at: string;
+    updated_at: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -40,6 +55,64 @@ interface UserProfile {
 //     // ローカルファイルの場合はSupabaseのStorageから取得
 //     return getPublicUrl('avatars', avatarPath);
 // };
+
+// 記事のヒーロー画像URLを取得する関数
+const fetchHeroImages = async (articles: Article[], supabase: any) => {
+    // hero_image_idがある記事のIDのみを抽出
+    const articleIds = articles.filter(a => a.hero_image_id).map(a => a.hero_image_id);
+
+    if (articleIds.length === 0) return;
+
+    try {
+        const { data: mediaData, error: mediaError } = await supabase
+            .from('article_media')
+            .select('*')
+            .in('id', articleIds);
+
+        if (mediaError) throw mediaError;
+
+        // メディア情報をマッピング
+        const mediaMap = mediaData.reduce((acc: any, media: any) => {
+            acc[media.id] = media;
+            return acc;
+        }, {});
+
+        // 記事データにヒーロー画像URLを追加
+        articles.forEach(article => {
+            if (article.hero_image_id && mediaMap[article.hero_image_id]) {
+                const media = mediaMap[article.hero_image_id];
+                const { data } = supabase.storage
+                    .from(media.storage_bucket)
+                    .getPublicUrl(media.storage_path);
+
+                article.hero_image_url = data.publicUrl;
+            }
+        });
+    } catch (error) {
+        console.error('ヒーロー画像の取得に失敗しました:', error);
+    }
+}
+
+// 記事データを取得する関数
+const fetchUserArticles = async (userId: string, supabase: any) => {
+    try {
+        const { data, error } = await supabase
+            .from('articles')
+            .select('*')
+            .eq('author_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // ヒーロー画像URLを取得
+        await fetchHeroImages(data, supabase);
+
+        return data;
+    } catch (error) {
+        console.error('記事の取得に失敗しました:', error);
+        return [];
+    }
+}
 
 export default function ProfilePage() {
     const [user, setUser] = useState<User | null>(null);
@@ -69,30 +142,90 @@ export default function ProfilePage() {
 
                 setUser(session.user);
 
-                // ユーザープロフィール情報を取得
+                console.log('ユーザーメタデータ:', session.user.user_metadata);
+
+                // ユーザープロフィール情報を取得 - 実際のテーブル構造に合わせたクエリ
                 const { data: profileData, error: profileError } = await supabase
                     .from('users')
-                    .select('id, name, avatar_url')
+                    .select('id, name, email, default_avatar_url, bio, website_url1, website_url2, website_url3, avatar_storage_bucket, avatar_storage_path, twitter_url, instagram_url, facebook_url, tiktok_url, github_url, created_at, updated_at')
                     .eq('id', session.user.id)
                     .single();
 
                 if (profileError) {
                     console.error('プロフィール取得エラー:', profileError);
+
+                    // バックアッププラン: 最小限の情報だけを取得してみる
+                    const { data: minimalProfileData, error: minimalError } = await supabase
+                        .from('users')
+                        .select('id, name, email, default_avatar_url')
+                        .eq('id', session.user.id)
+                        .single();
+
+                    if (minimalError) {
+                        console.error('最小限プロフィール取得エラー:', minimalError);
+
+                        // 最終手段：ユーザー情報からプロフィールを作成
+                        const userBasedProfile: UserProfile = {
+                            id: session.user.id,
+                            name: session.user.user_metadata?.full_name || '名前なし',
+                            email: session.user.email || '',
+                            default_avatar_url: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null,
+                            bio: null,
+                            website_url1: null,
+                            website_url2: null,
+                            website_url3: null,
+                            avatar_storage_bucket: 'avatars',
+                            avatar_storage_path: null,
+                            twitter_url: null,
+                            instagram_url: null,
+                            facebook_url: null,
+                            tiktok_url: null,
+                            github_url: null,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        };
+
+                        setProfile(userBasedProfile);
+                        setEditName(userBasedProfile.name);
+                    } else if (minimalProfileData) {
+                        // 必要なフィールドをすべて含む完全なプロフィールを作成
+                        const completeProfile: UserProfile = {
+                            ...minimalProfileData,
+                            bio: null,
+                            website_url1: null,
+                            website_url2: null,
+                            website_url3: null,
+                            avatar_storage_bucket: 'avatars',
+                            avatar_storage_path: null,
+                            twitter_url: null,
+                            instagram_url: null,
+                            facebook_url: null,
+                            tiktok_url: null,
+                            github_url: null,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        };
+
+                        // Googleのプロフィール画像URLがない場合はセッションから補完
+                        if (!completeProfile.default_avatar_url) {
+                            completeProfile.default_avatar_url = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null;
+                        }
+
+                        setProfile(completeProfile);
+                        setEditName(completeProfile.name);
+                    }
                 } else if (profileData) {
+                    // デフォルトアバターURLがない場合はセッションから補完
+                    if (!profileData.default_avatar_url) {
+                        profileData.default_avatar_url = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null;
+                    }
                     setProfile(profileData);
                     setEditName(profileData.name);
                 }
 
                 // ユーザーの投稿した記事を取得
-                const { data, error } = await supabase
-                    .from('articles')
-                    .select('*')
-                    .eq('author_id', session.user.id)
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-
-                setUserArticles(data || []);
+                const articles = await fetchUserArticles(session.user.id, supabase);
+                setUserArticles(articles || []);
             } catch (error) {
                 console.error('Error loading user data:', error);
             } finally {
@@ -107,7 +240,7 @@ export default function ProfilePage() {
         setIsEditing(!isEditing);
         if (!isEditing && profile) {
             setEditName(profile.name);
-            setAvatarPreview(profile.avatar_url);
+            setAvatarPreview(profile.default_avatar_url);
         }
     };
 
@@ -139,7 +272,7 @@ export default function ProfilePage() {
             const supabase = createClientSupabase();
 
             // プロフィール更新データ
-            const updates: { name: string; avatar_url?: string } = {
+            const updates: { name: string; default_avatar_url?: string } = {
                 name: editName.trim(),
             };
 
@@ -149,11 +282,11 @@ export default function ProfilePage() {
                 const avatarPath = `${user.id}/${Date.now()}.${avatarExt}`;
 
                 // 古いアバター画像があれば削除
-                if (profile?.avatar_url && !profile.avatar_url.startsWith('http')) {
+                if (profile?.avatar_storage_path && !profile.avatar_storage_path.startsWith('http')) {
                     try {
                         await supabase.storage
                             .from('avatars')
-                            .remove([profile.avatar_url]);
+                            .remove([profile.avatar_storage_path]);
                     } catch (error) {
                         console.error('古いアバター削除エラー:', error);
                         // エラーは無視して続行
@@ -171,7 +304,7 @@ export default function ProfilePage() {
                 if (uploadError) throw uploadError;
 
                 // アップロードに成功したらパスを更新データに追加
-                updates.avatar_url = avatarPath;
+                updates.default_avatar_url = avatarPath;
             }
 
             // プロフィール情報を更新
@@ -190,7 +323,7 @@ export default function ProfilePage() {
                 setProfile({
                     ...profile,
                     name: updates.name,
-                    avatar_url: updates.avatar_url !== undefined ? updates.avatar_url : profile.avatar_url,
+                    default_avatar_url: updates.default_avatar_url !== undefined ? updates.default_avatar_url : profile.default_avatar_url,
                 });
             }
 
@@ -283,11 +416,18 @@ export default function ProfilePage() {
                                 </div>
                             ) : (
                                 <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-gray-200">
-                                    {profile?.avatar_url ? (
+                                    {/* アバター画像の優先順位: Googleアバター(default_avatar_url) -> カスタムアバター(avatar_url) -> デフォルトアイコン */}
+                                    {profile?.default_avatar_url ? (
                                         <Image
-                                            src={profile.avatar_url.startsWith('http')
-                                                ? profile.avatar_url
-                                                : getPublicUrl('avatars', profile.avatar_url)}
+                                            src={
+                                                // Googleアバターが存在すればそれを使用
+                                                profile.default_avatar_url && profile.default_avatar_url.startsWith('http')
+                                                    ? profile.default_avatar_url
+                                                    // Supabaseストレージのパスがある場合は公開URLを取得
+                                                    : profile.default_avatar_url
+                                                        ? getPublicUrl('avatars', profile.default_avatar_url)
+                                                        : '/default-avatar.png' // デフォルト画像
+                                            }
                                             alt={profile.name}
                                             width={128}
                                             height={128}
@@ -364,9 +504,9 @@ export default function ProfilePage() {
                         {userArticles.map((article) => (
                             <div key={article.id} className="bg-white rounded-lg shadow-md overflow-hidden">
                                 <div className="aspect-video bg-gray-100 relative">
-                                    {article.hero_image ? (
+                                    {article.hero_image_url ? (
                                         <img
-                                            src={article.hero_image}
+                                            src={article.hero_image_url}
                                             alt={article.title}
                                             className="w-full h-full object-cover"
                                         />
