@@ -5,7 +5,7 @@ import { formatDistance } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import Image from 'next/image';
 
-// 記事の型定義
+// 型定義
 interface Article {
   id: string;
   title: string;
@@ -17,90 +17,28 @@ interface Article {
   download_count: number;
 }
 
-// 著者の型定義
 interface Author {
   id: string;
   name: string;
   avatar_url: string | null;
+  default_avatar_url?: string | null;
 }
 
-// ArticleCard コンポーネント
-function ArticleCard({ article, author, currentPage }: {
-  article: Article;
-  author: Author;
-  currentPage?: string;
-}) {
-  // 記事詳細へのリンクにページパラメータを追加
-  const detailUrl = currentPage
-    ? `/articles/${article.id}?from_page=${currentPage}`
-    : `/articles/${article.id}`;
+// Supabaseストレージからの公開URL取得
+const getPublicUrl = (bucket: string, path: string | null): string => {
+  if (!path) return '';
 
-  return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      {/* ヒーロー画像 */}
-      <div className="aspect-w-16 aspect-h-9">
-        {article.hero_image_url ? (
-          <Image
-            src={article.hero_image_url}
-            alt={article.title}
-            width={600}
-            height={338}
-            className="w-full h-full object-cover"
-            unoptimized={true}
-          />
-        ) : (
-          <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500">
-            画像なし
-          </div>
-        )}
-      </div>
+  // パスが既に完全なURLの場合はそのまま返す
+  if (path.startsWith('http')) {
+    return path;
+  }
 
-      {/* 記事情報 */}
-      <div className="p-4">
-        <h2 className="text-xl font-semibold mb-2 line-clamp-2">
-          <Link href={detailUrl} className="hover:text-indigo-600">
-            {article.title}
-          </Link>
-        </h2>
+  // Supabase URL
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dhvkmwrudleimrzppamd.supabase.co';
 
-        {/* 著者情報 */}
-        <div className="flex items-center mb-3">
-          <div className="w-8 h-8 rounded-full overflow-hidden mr-2">
-            {author.avatar_url ? (
-              <Image
-                src={author.avatar_url}
-                alt={author.name}
-                width={32}
-                height={32}
-                className="w-full h-full object-cover"
-                unoptimized={true}
-              />
-            ) : (
-              <div className="w-full h-full bg-gray-300 flex items-center justify-center text-xs text-gray-600">
-                {author.name.charAt(0).toUpperCase()}
-              </div>
-            )}
-          </div>
-          <span className="text-sm text-gray-600">{author.name}</span>
-        </div>
-
-        {/* メタデータ */}
-        <div className="flex justify-between text-xs text-gray-500">
-          <span>
-            {formatDistance(new Date(article.created_at), new Date(), {
-              addSuffix: true,
-              locale: ja,
-            })}
-          </span>
-          <div className="flex gap-2">
-            <span>👁️ {article.view_count}</span>
-            <span>⬇️ {article.download_count}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+  // 公開URLを生成
+  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
+};
 
 export default async function ArticlesPage({ searchParams }: { searchParams: { page?: string } }) {
   const supabase = createServerComponentClient({ cookies });
@@ -166,21 +104,22 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
 
   // 著者情報を取得
   const authorIds = Array.from(new Set(articles.map((article) => article.author_id)));
-  const { data: authors, error: authorsError } = await supabase
-    .from('users')
-    .select('*')
-    .in('id', authorIds);
 
-  if (authorsError) {
-    console.error('著者情報の取得に失敗しました:', authorsError);
-    return <div>著者情報の読み込み中にエラーが発生しました。</div>;
+  // 著者情報マップを準備
+  const authorsMap: Record<string, Author> = {};
+
+  if (authorIds.length > 0) {
+    // トップページと同じ方法で著者情報を取得（全フィールドを取得）
+    const { data: authors } = await supabase
+      .from('users')
+      .select('*')
+      .in('id', authorIds);
+
+    // トップページと同じシンプルなマッピング方法を採用
+    authors?.forEach(author => {
+      authorsMap[author.id] = author;
+    });
   }
-
-  // 著者情報をマッピング
-  const authorsMap = authors.reduce((acc, author) => {
-    acc[author.id] = author;
-    return acc;
-  }, {} as Record<string, Author>);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -204,12 +143,76 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {articles.map((article) => (
-            <ArticleCard
-              key={article.id}
-              article={article}
-              author={authorsMap[article.author_id]}
-              currentPage={currentPage}
-            />
+            <Link key={article.id} href={`/articles/${article.id}?from_page=${currentPage}`} className="block">
+              <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                {/* ヒーロー画像 */}
+                <div className="aspect-w-16 aspect-h-9">
+                  {article.hero_image_url ? (
+                    <Image
+                      src={article.hero_image_url}
+                      alt={article.title}
+                      width={600}
+                      height={338}
+                      className="w-full h-full object-cover"
+                      unoptimized={true}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500">
+                      画像なし
+                    </div>
+                  )}
+                </div>
+
+                {/* 記事情報 */}
+                <div className="p-4">
+                  <h2 className="text-xl font-semibold mb-2 line-clamp-2 hover:text-indigo-600">
+                    {article.title}
+                  </h2>
+
+                  {/* 著者情報 */}
+                  <div className="flex items-center mb-3">
+                    <div className="w-8 h-8 rounded-full overflow-hidden mr-2 border border-gray-300 shadow-sm">
+                      {authorsMap[article.author_id]?.avatar_url || authorsMap[article.author_id]?.default_avatar_url ? (
+                        <Image
+                          src={
+                            // default_avatar_urlを優先（GoogleやGitHubのアバターなど）
+                            authorsMap[article.author_id]?.default_avatar_url?.startsWith('http')
+                              ? authorsMap[article.author_id]?.default_avatar_url || ''
+                              : authorsMap[article.author_id]?.default_avatar_url
+                                ? getPublicUrl('avatars', authorsMap[article.author_id]?.default_avatar_url || '')
+                                // avatar_urlを次に確認
+                                : authorsMap[article.author_id]?.avatar_url?.startsWith('http')
+                                  ? authorsMap[article.author_id]?.avatar_url || ''
+                                  : getPublicUrl('avatars', authorsMap[article.author_id]?.avatar_url || '')
+                          }
+                          alt={authorsMap[article.author_id]?.name || '不明なユーザー'}
+                          width={32}
+                          height={32}
+                          className="w-full h-full object-cover"
+                          unoptimized={true}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-100 flex items-center justify-center text-xs text-gray-600 border border-gray-200">
+                          {authorsMap[article.author_id]?.name?.charAt(0).toUpperCase() || 'U'}
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-sm text-gray-600">{authorsMap[article.author_id]?.name || '不明なユーザー'}</span>
+                  </div>
+
+                  {/* メタデータ */}
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>
+                      {formatDistance(new Date(article.created_at), new Date(), {
+                        addSuffix: true,
+                        locale: ja,
+                      })}
+                    </span>
+                    {/* 閲覧数とダウンロード数は非表示（裏で管理するだけ） */}
+                  </div>
+                </div>
+              </div>
+            </Link>
           ))}
         </div>
       )}

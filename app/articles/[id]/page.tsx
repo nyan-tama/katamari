@@ -19,6 +19,22 @@ async function incrementViewCount(articleId: string) {
     .eq('id', articleId);
 }
 
+// Supabaseストレージからの公開URL取得
+const getPublicUrl = (bucket: string, path: string | null): string => {
+  if (!path) return '';
+
+  // パスが既に完全なURLの場合はそのまま返す
+  if (path.startsWith('http')) {
+    return path;
+  }
+
+  // Supabase URL
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dhvkmwrudleimrzppamd.supabase.co';
+
+  // 公開URLを生成
+  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
+};
+
 // キャッシュを無効化するためのオプションを追加
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -62,6 +78,33 @@ export default async function ArticlePage({ params, searchParams }: {
   // ログインユーザー情報を取得
   const { data: { user } } = await supabase.auth.getUser();
   const isAuthor = user && article && user.id === article.author_id;
+
+  // 著者アバターURLを取得する関数
+  const getAuthorAvatarUrl = () => {
+    if (!author) return '';
+
+    // default_avatar_urlを優先（GoogleやGitHubのアバターなど）
+    if (author.default_avatar_url) {
+      if (author.default_avatar_url.startsWith('http')) {
+        return author.default_avatar_url;
+      }
+      return getPublicUrl('avatars', author.default_avatar_url);
+    }
+
+    // 次にavatar_urlを確認
+    if (author.avatar_url) {
+      if (author.avatar_url.startsWith('http')) {
+        return author.avatar_url;
+      }
+      return getPublicUrl('avatars', author.avatar_url);
+    }
+
+    return '';
+  };
+
+  // アバターURLを取得
+  const avatarUrl = getAuthorAvatarUrl();
+  const hasAvatar = !!avatarUrl;
 
   // ヒーロー画像情報を取得
   let heroImage = null;
@@ -133,10 +176,10 @@ export default async function ArticlePage({ params, searchParams }: {
         {/* 著者情報と記事メタ情報 */}
         <div className="flex flex-wrap items-center justify-between mb-4">
           <div className="flex items-center">
-            <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
-              {author.avatar_url ? (
+            <div className="w-10 h-10 rounded-full overflow-hidden mr-3 border border-gray-300 shadow-sm">
+              {hasAvatar ? (
                 <Image
-                  src={author.avatar_url}
+                  src={avatarUrl}
                   alt={author.name}
                   width={40}
                   height={40}
@@ -144,7 +187,7 @@ export default async function ArticlePage({ params, searchParams }: {
                   unoptimized={true}
                 />
               ) : (
-                <div className="w-full h-full bg-gray-300 flex items-center justify-center text-sm text-gray-600">
+                <div className="w-full h-full bg-gray-100 flex items-center justify-center text-sm text-gray-600 border border-gray-200">
                   {author.name.charAt(0).toUpperCase()}
                 </div>
               )}
