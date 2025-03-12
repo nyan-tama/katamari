@@ -8,6 +8,7 @@ export interface Article {
   title: string
   content: string
   hero_image_url?: string
+  hero_image_id?: string
   status: 'draft' | 'published'
   view_count: number
   download_count: number

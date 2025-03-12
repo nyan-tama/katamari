@@ -127,114 +127,144 @@ export default function ProfilePage() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const router = useRouter();
 
-    useEffect(() => {
-        const getUser = async () => {
-            try {
-                setLoading(true);
-                const supabase = createClientSupabase();
-                const { data: { session } } = await supabase.auth.getSession();
+    // ユーザー情報と記事データを取得する関数
+    const fetchUserData = async () => {
+        try {
+            setLoading(true);
+            const supabase = createClientSupabase();
+            const { data: { session } } = await supabase.auth.getSession();
 
-                if (!session?.user) {
-                    // ログインしていない場合はログインページへリダイレクト
-                    router.push('/login');
-                    return;
-                }
+            if (!session?.user) {
+                // ログインしていない場合はログインページへリダイレクト
+                router.push('/login');
+                return;
+            }
 
-                setUser(session.user);
+            setUser(session.user);
 
-                console.log('ユーザーメタデータ:', session.user.user_metadata);
+            console.log('ユーザーメタデータ:', session.user.user_metadata);
 
-                // ユーザープロフィール情報を取得 - 実際のテーブル構造に合わせたクエリ
-                const { data: profileData, error: profileError } = await supabase
+            // ユーザープロフィール情報を取得 - 実際のテーブル構造に合わせたクエリ
+            const { data: profileData, error: profileError } = await supabase
+                .from('users')
+                .select('id, name, email, default_avatar_url, bio, website_url1, website_url2, website_url3, avatar_storage_bucket, avatar_storage_path, twitter_url, instagram_url, facebook_url, tiktok_url, github_url, created_at, updated_at')
+                .eq('id', session.user.id)
+                .single();
+
+            if (profileError) {
+                console.error('プロフィール取得エラー:', profileError);
+
+                // バックアッププラン: 最小限の情報だけを取得してみる
+                const { data: minimalProfileData, error: minimalError } = await supabase
                     .from('users')
-                    .select('id, name, email, default_avatar_url, bio, website_url1, website_url2, website_url3, avatar_storage_bucket, avatar_storage_path, twitter_url, instagram_url, facebook_url, tiktok_url, github_url, created_at, updated_at')
+                    .select('id, name, email, default_avatar_url')
                     .eq('id', session.user.id)
                     .single();
 
-                if (profileError) {
-                    console.error('プロフィール取得エラー:', profileError);
+                if (minimalError) {
+                    console.error('最小限プロフィール取得エラー:', minimalError);
 
-                    // バックアッププラン: 最小限の情報だけを取得してみる
-                    const { data: minimalProfileData, error: minimalError } = await supabase
-                        .from('users')
-                        .select('id, name, email, default_avatar_url')
-                        .eq('id', session.user.id)
-                        .single();
+                    // 最終手段：ユーザー情報からプロフィールを作成
+                    const userBasedProfile: UserProfile = {
+                        id: session.user.id,
+                        name: session.user.user_metadata?.full_name || '名前なし',
+                        email: session.user.email || '',
+                        default_avatar_url: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null,
+                        bio: null,
+                        website_url1: null,
+                        website_url2: null,
+                        website_url3: null,
+                        avatar_storage_bucket: 'avatars',
+                        avatar_storage_path: null,
+                        twitter_url: null,
+                        instagram_url: null,
+                        facebook_url: null,
+                        tiktok_url: null,
+                        github_url: null,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    };
 
-                    if (minimalError) {
-                        console.error('最小限プロフィール取得エラー:', minimalError);
+                    setProfile(userBasedProfile);
+                    setEditName(userBasedProfile.name);
+                } else if (minimalProfileData) {
+                    // 必要なフィールドをすべて含む完全なプロフィールを作成
+                    const completeProfile: UserProfile = {
+                        ...minimalProfileData,
+                        bio: null,
+                        website_url1: null,
+                        website_url2: null,
+                        website_url3: null,
+                        avatar_storage_bucket: 'avatars',
+                        avatar_storage_path: null,
+                        twitter_url: null,
+                        instagram_url: null,
+                        facebook_url: null,
+                        tiktok_url: null,
+                        github_url: null,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    };
 
-                        // 最終手段：ユーザー情報からプロフィールを作成
-                        const userBasedProfile: UserProfile = {
-                            id: session.user.id,
-                            name: session.user.user_metadata?.full_name || '名前なし',
-                            email: session.user.email || '',
-                            default_avatar_url: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null,
-                            bio: null,
-                            website_url1: null,
-                            website_url2: null,
-                            website_url3: null,
-                            avatar_storage_bucket: 'avatars',
-                            avatar_storage_path: null,
-                            twitter_url: null,
-                            instagram_url: null,
-                            facebook_url: null,
-                            tiktok_url: null,
-                            github_url: null,
-                            created_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString()
-                        };
-
-                        setProfile(userBasedProfile);
-                        setEditName(userBasedProfile.name);
-                    } else if (minimalProfileData) {
-                        // 必要なフィールドをすべて含む完全なプロフィールを作成
-                        const completeProfile: UserProfile = {
-                            ...minimalProfileData,
-                            bio: null,
-                            website_url1: null,
-                            website_url2: null,
-                            website_url3: null,
-                            avatar_storage_bucket: 'avatars',
-                            avatar_storage_path: null,
-                            twitter_url: null,
-                            instagram_url: null,
-                            facebook_url: null,
-                            tiktok_url: null,
-                            github_url: null,
-                            created_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString()
-                        };
-
-                        // Googleのプロフィール画像URLがない場合はセッションから補完
-                        if (!completeProfile.default_avatar_url) {
-                            completeProfile.default_avatar_url = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null;
-                        }
-
-                        setProfile(completeProfile);
-                        setEditName(completeProfile.name);
+                    // Googleのプロフィール画像URLがない場合はセッションから補完
+                    if (!completeProfile.default_avatar_url) {
+                        completeProfile.default_avatar_url = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null;
                     }
-                } else if (profileData) {
-                    // デフォルトアバターURLがない場合はセッションから補完
-                    if (!profileData.default_avatar_url) {
-                        profileData.default_avatar_url = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null;
-                    }
-                    setProfile(profileData);
-                    setEditName(profileData.name);
+
+                    setProfile(completeProfile);
+                    setEditName(completeProfile.name);
                 }
+            } else if (profileData) {
+                // デフォルトアバターURLがない場合はセッションから補完
+                if (!profileData.default_avatar_url) {
+                    profileData.default_avatar_url = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null;
+                }
+                setProfile(profileData);
+                setEditName(profileData.name);
+            }
 
-                // ユーザーの投稿した記事を取得
-                const articles = await fetchUserArticles(session.user.id, supabase);
-                setUserArticles(articles || []);
-            } catch (error) {
-                console.error('Error loading user data:', error);
-            } finally {
-                setLoading(false);
+            // ユーザーの投稿した記事を取得
+            const articles = await fetchUserArticles(session.user.id, supabase);
+            setUserArticles(articles || []);
+        } catch (error) {
+            console.error('Error loading user data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 初回レンダリング時にユーザーデータを取得
+    useEffect(() => {
+        fetchUserData();
+    }, [router]);
+
+    // ページにフォーカスが戻ったときに記事データを再取得
+    useEffect(() => {
+        const handleFocus = () => {
+            // ユーザーが既にログインしている場合のみ再取得
+            if (user) {
+                // 記事データだけ再取得（軽量化のため）
+                const refreshArticles = async () => {
+                    try {
+                        const supabase = createClientSupabase();
+                        const articles = await fetchUserArticles(user.id, supabase);
+                        setUserArticles(articles || []);
+                    } catch (error) {
+                        console.error('記事の再取得に失敗しました:', error);
+                    }
+                };
+                refreshArticles();
             }
         };
 
-        getUser();
-    }, [router]);
+        // ブラウザのフォーカスイベントに登録
+        window.addEventListener('focus', handleFocus);
+
+        // クリーンアップ関数
+        return () => {
+            window.removeEventListener('focus', handleFocus);
+        };
+    }, [user]);
 
     const handleEditToggle = () => {
         setIsEditing(!isEditing);
@@ -503,44 +533,53 @@ export default function ProfilePage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {userArticles.map((article) => (
                             <div key={article.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                                <div className="aspect-video bg-gray-100 relative">
-                                    {article.hero_image_url ? (
-                                        <img
-                                            src={article.hero_image_url}
-                                            alt={article.title}
-                                            className="w-full h-full object-cover"
-                                        />
-                                    ) : (
-                                        <div className="flex items-center justify-center h-full text-gray-400">
-                                            <span className="text-4xl">📄</span>
-                                        </div>
-                                    )}
-                                    {article.status === 'draft' && (
-                                        <div className="absolute top-2 right-2 bg-yellow-100 text-yellow-800 text-xs font-medium px-2 py-1 rounded">
-                                            下書き
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="p-4">
-                                    <h3 className="font-medium text-gray-900 mb-1 truncate">{article.title}</h3>
-                                    <div className="flex justify-between text-sm text-gray-500 mb-3">
-                                        <span>{new Date(article.created_at).toLocaleDateString('ja-JP')}</span>
-                                        <div className="flex space-x-2">
-                                            <span>👁️ {article.view_count}</span>
-                                            <span>⬇️ {article.download_count}</span>
+                                {/* サムネイル画像部分をリンクにする */}
+                                <Link href={`/articles/${article.id}`} className="block">
+                                    <div className="aspect-video bg-gray-100 relative w-full" style={{ paddingBottom: '56.25%', height: 0, overflow: 'hidden' }}>
+                                        {article.hero_image_url ? (
+                                            <img
+                                                src={article.hero_image_url}
+                                                alt={article.title}
+                                                className="absolute inset-0 w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="absolute inset-0 flex items-center justify-center h-full text-gray-400">
+                                                <span className="text-4xl">📄</span>
+                                            </div>
+                                        )}
+                                        {/* 公開状態の表示を右上に配置 */}
+                                        <div
+                                            className={`absolute top-2 right-2 text-sm px-2 py-1 rounded ${article.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}
+                                        >
+                                            {article.status === 'published' ? '公開中' : '非公開'}
                                         </div>
                                     </div>
-                                    <div className="flex justify-between">
-                                        <Link
-                                            href={`/articles/${article.id}`}
-                                            className="text-pink-500 hover:text-pink-600"
-                                        >
-                                            詳細を見る
+                                </Link>
+                                <div className="p-4">
+                                    <h3 className="text-lg font-semibold mb-2">
+                                        <Link href={`/articles/${article.id}`} className="hover:text-indigo-600">
+                                            {article.title}
                                         </Link>
+                                    </h3>
+                                    <div className="flex justify-between items-center">
+                                        {/* 公開日/作成日と更新日を両方表示 */}
+                                        <div className="text-sm text-gray-500 flex flex-col gap-1">
+                                            <div>
+                                                {article.status === 'published' ? '公開日' : '作成日'}:
+                                                {new Date(article.created_at).toLocaleDateString('ja-JP')}
+                                            </div>
+                                            <div>
+                                                更新日: {new Date(article.updated_at).toLocaleDateString('ja-JP')}
+                                            </div>
+                                        </div>
+                                        {/* 編集ボタン */}
                                         <Link
                                             href={`/articles/${article.id}/edit`}
-                                            className="text-gray-500 hover:text-gray-700"
+                                            className="inline-flex items-center text-sm bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded hover:bg-indigo-200 transition-colors"
                                         >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
                                             編集
                                         </Link>
                                     </div>
