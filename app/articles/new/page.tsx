@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import TipTapEditor from '../../components/Editor/TipTapEditor';
-import { createArticle } from '../../../lib/api/articles';
+import { createArticle, CreateArticleInput } from '../../../lib/api/articles';
 import { createClientSupabase } from '@/lib/supabase-client';
 
 export default function NewArticlePage() {
@@ -12,7 +12,6 @@ export default function NewArticlePage() {
   const [content, setContent] = useState('');
   const [heroImage, setHeroImage] = useState<File | null>(null);
   const [heroImagePreview, setHeroImagePreview] = useState<string | null>(null);
-  const [status, setStatus] = useState<'draft' | 'published'>('draft');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -29,18 +28,33 @@ export default function NewArticlePage() {
         router.push('/login');
       }
     };
-    
+
     checkAuth();
   }, [router]);
 
   // ヒーロー画像の選択ハンドラ
   const handleHeroImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setHeroImage(file);
-      const objectUrl = URL.createObjectURL(file);
-      setHeroImagePreview(objectUrl);
+    if (!file) return;
+
+    // ファイルタイプの検証
+    if (!file.type.startsWith('image/')) {
+      setError('画像ファイルのみアップロードできます');
+      return;
     }
+
+    // ファイルサイズの検証（5MB上限）
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      setError('画像サイズは5MB以下にしてください');
+      return;
+    }
+
+    setHeroImage(file);
+    const objectUrl = URL.createObjectURL(file);
+    setHeroImagePreview(objectUrl);
+    // エラーメッセージをクリア
+    setError(null);
   };
 
   // 記事の保存
@@ -48,7 +62,7 @@ export default function NewArticlePage() {
     try {
       setIsSubmitting(true);
       setError(null);
-      
+
       if (!title.trim()) {
         setError('タイトルを入力してください');
         setIsSubmitting(false);
@@ -66,36 +80,114 @@ export default function NewArticlePage() {
       // ヒーロー画像のアップロード（もし選択されていれば）
       let heroImageUrl = null;
       if (heroImage) {
-        const filename = `${Date.now()}_${heroImage.name}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('media')
-          .upload(`${userId}/${filename}`, heroImage);
+        try {
+          // ファイル名のスペースをアンダースコアに置換し、特殊文字を除去
+          const sanitizedFileName = heroImage.name.replace(/\s+/g, '_').replace(/[^\w_.]/gi, '');
+          const filename = `${Date.now()}_${sanitizedFileName}`;
 
-        if (uploadError) {
-          console.error('画像アップロードエラー:', uploadError);
-          setError('画像のアップロードに失敗しました');
+          console.log('ストレージアップロード開始:', {
+            bucket: 'article_media',
+            path: `${userId}/hero_images/${filename}`,
+            fileSize: heroImage.size,
+            fileType: heroImage.type
+          });
+
+          const { error: uploadError } = await supabase.storage
+            .from('article_media')
+            .upload(`${userId}/hero_images/${filename}`, heroImage, {
+              cacheControl: '3600',
+              upsert: false
+            });
+
+          if (uploadError) {
+            console.error('画像アップロードエラー:', uploadError);
+            setError(`画像のアップロードに失敗しました: ${uploadError.message}`);
+            setIsSubmitting(false);
+            return;
+          }
+
+          // 公開URLを取得
+          const { data } = supabase.storage
+            .from('article_media')
+            .getPublicUrl(`${userId}/hero_images/${filename}`);
+
+          heroImageUrl = data.publicUrl;
+          console.log('画像アップロード成功:', heroImageUrl);
+        } catch (uploadErr: unknown) {
+          console.error('画像アップロード例外:', uploadErr);
+          const errorMessage = uploadErr instanceof Error
+            ? uploadErr.message
+            : typeof uploadErr === 'object' && uploadErr && 'message' in uploadErr
+              ? String(uploadErr.message)
+              : '不明なエラー';
+          setError(`画像のアップロードに失敗しました: ${errorMessage}`);
           setIsSubmitting(false);
           return;
         }
-
-        // 公開URLを取得
-        const { data } = supabase.storage
-          .from('media')
-          .getPublicUrl(`${userId}/${filename}`);
-        
-        heroImageUrl = data.publicUrl;
       }
 
       // 記事の作成
-      const article = await createArticle(userId, {
-        title,
-        content,
-        hero_image: heroImageUrl || undefined,
-        status: saveStatus,
-      });
+      try {
+        console.log('記事作成開始:', {
+          title: title.length,
+          content: content.length > 100 ? content.substring(0, 100) + '...' : content,
+          status: saveStatus
+        });
 
-      // 成功したら記事詳細ページにリダイレクト
-      router.push(`/articles/${article.id}`);
+        // 公開時は公開日時も設定
+        const articleData: CreateArticleInput = {
+          title,
+          content,
+          status: saveStatus,
+        };
+
+        // 公開状態の場合は公開日時を設定
+        if (saveStatus === 'published') {
+          articleData.published_at = new Date().toISOString();
+        }
+
+        const article = await createArticle(userId, articleData);
+
+        // 記事作成に成功したら、ヒーロー画像の情報をarticle_mediaテーブルに保存
+        if (heroImageUrl) {
+          try {
+            // article_mediaテーブルにヒーロー画像の情報を追加
+            const { data: mediaData, error: mediaError } = await supabase.from('article_media').insert({
+              article_id: article.id,
+              media_type: 'image',
+              storage_bucket: 'article_media',
+              storage_path: `${userId}/hero_images/${heroImageUrl.split('/').pop()}`,
+              media_role: 'hero'
+            }).select();
+
+            if (mediaError) {
+              console.error('ヒーロー画像情報の保存に失敗しました:', mediaError);
+            } else if (mediaData && mediaData.length > 0) {
+              // ヒーロー画像IDを記事に関連付け
+              const { error: updateError } = await supabase
+                .from('articles')
+                .update({ hero_image_id: mediaData[0].id })
+                .eq('id', article.id);
+
+              if (updateError) {
+                console.error('記事のヒーロー画像ID更新に失敗しました:', updateError);
+              }
+            }
+          } catch (err) {
+            console.error('ヒーロー画像情報の保存に失敗しました:', err);
+            // ヒーロー画像情報の保存失敗は致命的エラーではないので続行
+          }
+        }
+
+        console.log('記事作成成功:', article);
+
+        // 成功したら記事詳細ページにリダイレクト
+        router.push(`/articles/${article.id}`);
+      } catch (err) {
+        console.error('記事保存エラー（詳細）:', JSON.stringify(err));
+        setError('記事の保存に失敗しました');
+        setIsSubmitting(false);
+      }
     } catch (err) {
       console.error('記事保存エラー:', err);
       setError('記事の保存に失敗しました');

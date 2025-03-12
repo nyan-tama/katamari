@@ -12,7 +12,8 @@ interface Article {
     id: string;
     title: string;
     content: string;
-    hero_image?: string;
+    hero_image_id?: string;
+    hero_image_url?: string;
     status: 'draft' | 'published';
     created_at: string;
     updated_at: string;
@@ -54,6 +55,64 @@ interface UserProfile {
 //     // ローカルファイルの場合はSupabaseのStorageから取得
 //     return getPublicUrl('avatars', avatarPath);
 // };
+
+// 記事のヒーロー画像URLを取得する関数
+const fetchHeroImages = async (articles: Article[], supabase: any) => {
+    // hero_image_idがある記事のIDのみを抽出
+    const articleIds = articles.filter(a => a.hero_image_id).map(a => a.hero_image_id);
+
+    if (articleIds.length === 0) return;
+
+    try {
+        const { data: mediaData, error: mediaError } = await supabase
+            .from('article_media')
+            .select('*')
+            .in('id', articleIds);
+
+        if (mediaError) throw mediaError;
+
+        // メディア情報をマッピング
+        const mediaMap = mediaData.reduce((acc: any, media: any) => {
+            acc[media.id] = media;
+            return acc;
+        }, {});
+
+        // 記事データにヒーロー画像URLを追加
+        articles.forEach(article => {
+            if (article.hero_image_id && mediaMap[article.hero_image_id]) {
+                const media = mediaMap[article.hero_image_id];
+                const { data } = supabase.storage
+                    .from(media.storage_bucket)
+                    .getPublicUrl(media.storage_path);
+
+                article.hero_image_url = data.publicUrl;
+            }
+        });
+    } catch (error) {
+        console.error('ヒーロー画像の取得に失敗しました:', error);
+    }
+}
+
+// 記事データを取得する関数
+const fetchUserArticles = async (userId: string, supabase: any) => {
+    try {
+        const { data, error } = await supabase
+            .from('articles')
+            .select('*')
+            .eq('author_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // ヒーロー画像URLを取得
+        await fetchHeroImages(data, supabase);
+
+        return data;
+    } catch (error) {
+        console.error('記事の取得に失敗しました:', error);
+        return [];
+    }
+}
 
 export default function ProfilePage() {
     const [user, setUser] = useState<User | null>(null);
@@ -165,15 +224,8 @@ export default function ProfilePage() {
                 }
 
                 // ユーザーの投稿した記事を取得
-                const { data, error } = await supabase
-                    .from('articles')
-                    .select('*')
-                    .eq('author_id', session.user.id)
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-
-                setUserArticles(data || []);
+                const articles = await fetchUserArticles(session.user.id, supabase);
+                setUserArticles(articles || []);
             } catch (error) {
                 console.error('Error loading user data:', error);
             } finally {
@@ -452,9 +504,9 @@ export default function ProfilePage() {
                         {userArticles.map((article) => (
                             <div key={article.id} className="bg-white rounded-lg shadow-md overflow-hidden">
                                 <div className="aspect-video bg-gray-100 relative">
-                                    {article.hero_image ? (
+                                    {article.hero_image_url ? (
                                         <img
-                                            src={article.hero_image}
+                                            src={article.hero_image_url}
                                             alt={article.title}
                                             className="w-full h-full object-cover"
                                         />

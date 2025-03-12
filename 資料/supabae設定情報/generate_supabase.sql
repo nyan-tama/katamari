@@ -346,76 +346,113 @@ CREATE TRIGGER favorites_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_timestamp_column();
 
 -- 8. ストレージバケットの作成
-INSERT INTO storage.buckets (id, name, public) VALUES ('articles', '記事に添付するファイル一式', true);
-INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'ユーザーアバター画像', true);
-INSERT INTO storage.buckets (id, name, public) VALUES ('article_media', '記事内に埋め込むメディアファイル', true);
+INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true);
+INSERT INTO storage.buckets (id, name, public) VALUES ('article_media', 'article_media', true);
+INSERT INTO storage.buckets (id, name, public) VALUES ('downloads', 'downloads', true);
 
 -- 9. ストレージのRLSポリシー設定
 
--- articlesバケットのRLSポリシー
-CREATE POLICY "公開記事のファイルは閲覧可能" ON storage.objects
-  FOR SELECT USING (
-    bucket_id = 'articles' AND (
-      EXISTS (
-        SELECT 1 FROM articles a
-        WHERE a.id::text = (storage.foldername(name))[2]
-        AND a.status = 'published'
-      )
-    )
-  );
+-- avatarsバケットのRLSポリシー
+-- 閲覧ポリシー
+CREATE POLICY "アバターは全ユーザーが閲覧可能" 
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = 'avatars');
 
-CREATE POLICY "自分の記事のファイルは閲覧可能" ON storage.objects
-  FOR SELECT USING (
-    bucket_id = 'articles' AND (
-      EXISTS (
-        SELECT 1 FROM articles a
-        WHERE a.id::text = (storage.foldername(name))[2]
-        AND a.author_id = auth.uid()
-      )
-    )
-  );
+-- アップロードポリシー
+CREATE POLICY "ユーザーは自分のアバターのみアップロード可能" 
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'avatars' AND 
+  auth.uid()::text = (storage.foldername(name))[1]
+);
 
-CREATE POLICY "自分の記事のファイルのみアップロード可能" ON storage.objects
-  FOR INSERT WITH CHECK (
-    bucket_id = 'articles' AND (
-      EXISTS (
-        SELECT 1 FROM articles a
-        WHERE a.id::text = (storage.foldername(name))[2]
-        AND a.author_id = auth.uid()
-      )
-    )
-  );
+-- 更新ポリシー
+CREATE POLICY "ユーザーは自分のアバターのみ更新可能" 
+ON storage.objects FOR UPDATE
+TO authenticated
+WITH CHECK (
+  bucket_id = 'avatars' AND 
+  auth.uid()::text = (storage.foldername(name))[1]
+);
 
-CREATE POLICY "自分の記事のファイルのみ削除可能" ON storage.objects
-  FOR DELETE USING (
-    bucket_id = 'articles' AND (
-      EXISTS (
-        SELECT 1 FROM articles a
-        WHERE a.id::text = (storage.foldername(name))[2]
-        AND a.author_id = auth.uid()
-      )
-    )
-  );
+-- 削除ポリシー
+CREATE POLICY "ユーザーは自分のアバターのみ削除可能" 
+ON storage.objects FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'avatars' AND 
+  auth.uid()::text = (storage.foldername(name))[1]
+);
 
 -- article_mediaバケットのRLSポリシー
-CREATE POLICY "メディアは公開で読み取り可能" ON storage.objects
-  FOR SELECT USING (bucket_id = 'article_media');
+-- 閲覧ポリシー
+CREATE POLICY "記事メディアは全ユーザーが閲覧可能" 
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = 'article_media');
 
-CREATE POLICY "認証済みユーザーはメディアをアップロード可能" ON storage.objects
-  FOR INSERT WITH CHECK (bucket_id = 'article_media' AND auth.uid() = (storage.foldername(name))[1]::uuid);
+-- アップロードポリシー
+CREATE POLICY "ユーザーは自分の記事メディアフォルダにのみアップロード可能" 
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'article_media' AND 
+  auth.uid()::text = (storage.foldername(name))[1]
+);
 
-CREATE POLICY "ユーザーは自分のメディアのみ削除可能" ON storage.objects
-  FOR DELETE USING (bucket_id = 'article_media' AND auth.uid() = (storage.foldername(name))[1]::uuid);
+-- 更新ポリシー
+CREATE POLICY "ユーザーは自分の記事メディアのみ更新可能" 
+ON storage.objects FOR UPDATE
+TO authenticated
+WITH CHECK (
+  bucket_id = 'article_media' AND 
+  auth.uid()::text = (storage.foldername(name))[1]
+);
 
--- avatarsバケットのRLSポリシー
-CREATE POLICY "アバターは公開で読み取り可能" ON storage.objects
-  FOR SELECT USING (bucket_id = 'avatars');
+-- 削除ポリシー
+CREATE POLICY "ユーザーは自分の記事メディアのみ削除可能" 
+ON storage.objects FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'article_media' AND 
+  auth.uid()::text = (storage.foldername(name))[1]
+);
 
-CREATE POLICY "認証済みユーザーはアバターをアップロード可能" ON storage.objects
-  FOR INSERT WITH CHECK (bucket_id = 'avatars' AND auth.uid() = (storage.foldername(name))[1]::uuid);
+-- downloadsバケットのRLSポリシー
+-- 閲覧ポリシー
+CREATE POLICY "ダウンロードファイルは全ユーザーが閲覧可能" 
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = 'downloads');
 
-CREATE POLICY "ユーザーは自分のアバターのみ削除可能" ON storage.objects
-  FOR DELETE USING (bucket_id = 'avatars' AND auth.uid() = (storage.foldername(name))[1]::uuid);
+-- アップロードポリシー
+CREATE POLICY "ユーザーは自分のダウンロードフォルダにのみアップロード可能" 
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'downloads' AND 
+  auth.uid()::text = (storage.foldername(name))[1]
+);
+
+-- 更新ポリシー
+CREATE POLICY "ユーザーは自分のダウンロードファイルのみ更新可能" 
+ON storage.objects FOR UPDATE
+TO authenticated
+WITH CHECK (
+  bucket_id = 'downloads' AND 
+  auth.uid()::text = (storage.foldername(name))[1]
+);
+
+-- 削除ポリシー
+CREATE POLICY "ユーザーは自分のダウンロードファイルのみ削除可能" 
+ON storage.objects FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'downloads' AND 
+  auth.uid()::text = (storage.foldername(name))[1]
+);
 
 -- 10. 全文検索関数の作成
 CREATE OR REPLACE FUNCTION search_articles(search_term TEXT)

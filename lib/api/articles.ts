@@ -7,7 +7,7 @@ export interface Article {
   author_id: string
   title: string
   content: string
-  hero_image?: string
+  hero_image_url?: string
   status: 'draft' | 'published'
   view_count: number
   download_count: number
@@ -19,22 +19,24 @@ export interface Article {
 export interface CreateArticleInput {
   title: string
   content: string
-  hero_image?: string
+  hero_image_url?: string
   status: 'draft' | 'published'
+  published_at?: string
 }
 
 // 記事更新用の型定義
 export interface UpdateArticleInput {
   title?: string
   content?: string
-  hero_image?: string
+  hero_image_url?: string
   status?: 'draft' | 'published'
+  published_at?: string
 }
 
 // 全ての公開記事を取得
 export async function getPublishedArticles() {
   const supabase = createClientSupabase()
-  
+
   const { data, error } = await supabase
     .from('articles')
     .select('*')
@@ -52,7 +54,7 @@ export async function getPublishedArticles() {
 // 特定のユーザーの全ての記事を取得
 export async function getUserArticles(userId: string) {
   const supabase = createClientSupabase()
-  
+
   const { data, error } = await supabase
     .from('articles')
     .select('*')
@@ -70,7 +72,7 @@ export async function getUserArticles(userId: string) {
 // IDによる記事の取得
 export async function getArticleById(id: string) {
   const supabase = createClientSupabase()
-  
+
   const { data, error } = await supabase
     .from('articles')
     .select('*')
@@ -88,7 +90,7 @@ export async function getArticleById(id: string) {
 // 新しい記事の作成
 export async function createArticle(authorId: string, articleData: CreateArticleInput) {
   const supabase = createClientSupabase()
-  
+
   const { data, error } = await supabase
     .from('articles')
     .insert([
@@ -110,13 +112,31 @@ export async function createArticle(authorId: string, articleData: CreateArticle
 // 記事の更新
 export async function updateArticle(id: string, articleData: UpdateArticleInput) {
   const supabase = createClientSupabase()
-  
+
+  // 更新データを準備
+  const updateData = {
+    ...articleData,
+    updated_at: new Date().toISOString(),
+  }
+
+  // statusが'published'に変更されている場合、published_atがなければ設定
+  if (articleData.status === 'published' && !articleData.published_at) {
+    // 現在の記事データを取得して公開日時を確認
+    const { data: currentArticle } = await supabase
+      .from('articles')
+      .select('published_at, status')
+      .eq('id', id)
+      .single()
+
+    // 以前は非公開で、今回公開になる場合のみ公開日時を設定
+    if (currentArticle && (currentArticle.status !== 'published' || !currentArticle.published_at)) {
+      updateData.published_at = new Date().toISOString()
+    }
+  }
+
   const { data, error } = await supabase
     .from('articles')
-    .update({
-      ...articleData,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq('id', id)
     .select()
 
@@ -131,7 +151,7 @@ export async function updateArticle(id: string, articleData: UpdateArticleInput)
 // 記事の削除
 export async function deleteArticle(id: string) {
   const supabase = createClientSupabase()
-  
+
   const { error } = await supabase
     .from('articles')
     .delete()
@@ -148,7 +168,7 @@ export async function deleteArticle(id: string) {
 // 記事の閲覧数をインクリメント
 export async function incrementViewCount(id: string) {
   const supabase = createClientSupabase()
-  
+
   const { data, error } = await supabase.rpc('increment_view_count', { article_id: id })
 
   if (error) {

@@ -1,30 +1,16 @@
 ﻿[
   {
-    "policy_name": "download_files_delete_policy",
-    "table_name": "objects",
-    "command": "DELETE",
-    "using_expression": "((bucket_id = 'downloads'::text) AND (EXISTS ( SELECT 1\n   FROM articles a\n  WHERE (((a.id)::text = (storage.foldername(objects.name))[2]) AND (a.author_id = auth.uid())))))",
-    "with_check_expression": null
-  },
-  {
-    "policy_name": "download_files_select_policy",
-    "table_name": "objects",
-    "command": "SELECT",
-    "using_expression": "((bucket_id = 'downloads'::text) AND (EXISTS ( SELECT 1\n   FROM articles a\n  WHERE (((a.id)::text = (storage.foldername(objects.name))[2]) AND ((a.status = 'published'::text) OR (a.author_id = auth.uid()))))))",
-    "with_check_expression": null
-  },
-  {
-    "policy_name": "download_files_update_policy",
-    "table_name": "objects",
-    "command": "UPDATE",
-    "using_expression": "((bucket_id = 'downloads'::text) AND (EXISTS ( SELECT 1\n   FROM articles a\n  WHERE (((a.id)::text = (storage.foldername(objects.name))[2]) AND (a.author_id = auth.uid())))))",
-    "with_check_expression": null
-  },
-  {
     "policy_name": "アバターは全ユーザーが閲覧可能",
     "table_name": "objects",
     "command": "SELECT",
     "using_expression": "(bucket_id = 'avatars'::text)",
+    "with_check_expression": null
+  },
+  {
+    "policy_name": "ダウンロードファイルは全ユーザーが閲覧可能",
+    "table_name": "objects",
+    "command": "SELECT",
+    "using_expression": "(bucket_id = 'downloads'::text)",
     "with_check_expression": null
   },
   {
@@ -45,42 +31,56 @@
     "policy_name": "ユーザーは自分のアバターのみ更新可能",
     "table_name": "objects",
     "command": "UPDATE",
-    "using_expression": "((bucket_id = 'avatars'::text) AND ((auth.uid())::text = (storage.foldername(name))[1]))",
+    "using_expression": null,
+    "with_check_expression": "((bucket_id = 'avatars'::text) AND ((auth.uid())::text = (storage.foldername(name))[1]))"
+  },
+  {
+    "policy_name": "ユーザーは自分のダウンロードファイルのみ削",
+    "table_name": "objects",
+    "command": "DELETE",
+    "using_expression": "((bucket_id = 'downloads'::text) AND ((auth.uid())::text = (storage.foldername(name))[1]))",
     "with_check_expression": null
   },
   {
-    "policy_name": "ユーザーは自分の記事のメディアのみアップロ",
+    "policy_name": "ユーザーは自分のダウンロードファイルのみ更",
+    "table_name": "objects",
+    "command": "UPDATE",
+    "using_expression": null,
+    "with_check_expression": "((bucket_id = 'downloads'::text) AND ((auth.uid())::text = (storage.foldername(name))[1]))"
+  },
+  {
+    "policy_name": "ユーザーは自分のダウンロードフォルダにのみ",
     "table_name": "objects",
     "command": "INSERT",
     "using_expression": null,
-    "with_check_expression": "((bucket_id = 'article_media'::text) AND (EXISTS ( SELECT 1\n   FROM articles a\n  WHERE (((a.id)::text = (storage.foldername(objects.name))[2]) AND (a.author_id = auth.uid())))))"
+    "with_check_expression": "((bucket_id = 'downloads'::text) AND ((auth.uid())::text = (storage.foldername(name))[1]))"
   },
   {
-    "policy_name": "ユーザーは自分の記事のメディアのみ削除可能",
+    "policy_name": "ユーザーは自分の記事メディアのみ削除可能",
     "table_name": "objects",
     "command": "DELETE",
-    "using_expression": "((bucket_id = 'article_media'::text) AND (EXISTS ( SELECT 1\n   FROM articles a\n  WHERE (((a.id)::text = (storage.foldername(objects.name))[2]) AND (a.author_id = auth.uid())))))",
+    "using_expression": "((bucket_id = 'article_media'::text) AND ((auth.uid())::text = (storage.foldername(name))[1]))",
     "with_check_expression": null
   },
   {
-    "policy_name": "ユーザーは自分の記事のメディアのみ更新可能",
+    "policy_name": "ユーザーは自分の記事メディアのみ更新可能",
     "table_name": "objects",
     "command": "UPDATE",
-    "using_expression": "((bucket_id = 'article_media'::text) AND (EXISTS ( SELECT 1\n   FROM articles a\n  WHERE (((a.id)::text = (storage.foldername(objects.name))[2]) AND (a.author_id = auth.uid())))))",
-    "with_check_expression": null
+    "using_expression": null,
+    "with_check_expression": "((bucket_id = 'article_media'::text) AND ((auth.uid())::text = (storage.foldername(name))[1]))"
   },
   {
-    "policy_name": "公開記事のダウンロードファイルは全ユーザー",
+    "policy_name": "ユーザーは自分の記事メディアフォルダにのみ",
     "table_name": "objects",
-    "command": "SELECT",
-    "using_expression": "((bucket_id = 'downloads'::text) AND (EXISTS ( SELECT 1\n   FROM articles a\n  WHERE (((a.id)::text = (storage.foldername(objects.name))[2]) AND ((a.status = 'published'::text) OR (a.author_id = auth.uid()))))))",
-    "with_check_expression": null
+    "command": "INSERT",
+    "using_expression": null,
+    "with_check_expression": "((bucket_id = 'article_media'::text) AND ((auth.uid())::text = (storage.foldername(name))[1]))"
   },
   {
-    "policy_name": "公開記事のメディアは全ユーザーが閲覧可能",
+    "policy_name": "記事メディアは全ユーザーが閲覧可能",
     "table_name": "objects",
     "command": "SELECT",
-    "using_expression": "((bucket_id = 'article_media'::text) AND (EXISTS ( SELECT 1\n   FROM articles a\n  WHERE (((a.id)::text = (storage.foldername(objects.name))[2]) AND ((a.status = 'published'::text) OR (a.author_id = auth.uid()))))))",
+    "using_expression": "(bucket_id = 'article_media'::text)",
     "with_check_expression": null
   }
 ]

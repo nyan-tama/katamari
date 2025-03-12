@@ -9,9 +9,9 @@ import Image from 'next/image';
 // ビューカウント更新用のサーバーアクションを定義
 async function incrementViewCount(articleId: string) {
   'use server';
-  
+
   const supabase = createServerComponentClient({ cookies });
-  
+
   await supabase
     .from('articles')
     .update({ view_count: supabase.rpc('increment', { field: 'view_count' }) })
@@ -20,7 +20,7 @@ async function incrementViewCount(articleId: string) {
 
 export default async function ArticlePage({ params }: { params: { id: string } }) {
   const supabase = createServerComponentClient({ cookies });
-  
+
   // 記事データを取得
   const { data: article, error } = await supabase
     .from('articles')
@@ -45,9 +45,43 @@ export default async function ArticlePage({ params }: { params: { id: string } }
     return <div>著者情報の読み込み中にエラーが発生しました。</div>;
   }
 
+  // ヒーロー画像情報を取得
+  let heroImage = null;
+  if (article.hero_image_id) {
+    const { data: mediaData, error: mediaError } = await supabase
+      .from('article_media')
+      .select('*')
+      .eq('id', article.hero_image_id)
+      .single();
+
+    if (mediaError) {
+      console.error('ヒーロー画像の取得に失敗しました:', mediaError);
+    } else if (mediaData) {
+      // ストレージからURLを生成
+      console.log('ストレージ情報:', {
+        bucket: mediaData.storage_bucket,
+        path: mediaData.storage_path
+      }); // ストレージ情報を確認
+
+      // ストレージパスを適切にエンコード
+      const encodedPath = mediaData.storage_path
+        .split('/')
+        .map((segment: string) => encodeURIComponent(segment))
+        .join('/');
+
+      const { data } = supabase.storage
+        .from(mediaData.storage_bucket)
+        .getPublicUrl(encodedPath);
+
+      console.log('生成されたURL:', data.publicUrl); // 生成されたURLを確認
+
+      heroImage = data.publicUrl;
+    }
+  }
+
   // 記事に添付されたファイルを取得
   const { data: files, error: filesError } = await supabase
-    .from('files')
+    .from('download_files')
     .select('*')
     .eq('article_id', params.id);
 
@@ -64,7 +98,7 @@ export default async function ArticlePage({ params }: { params: { id: string } }
       {/* 記事ヘッダー */}
       <header className="mb-8">
         <h1 className="text-3xl md:text-4xl font-bold mb-4">{article.title}</h1>
-        
+
         {/* 著者情報 */}
         <div className="flex items-center mb-4">
           <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
@@ -95,10 +129,10 @@ export default async function ArticlePage({ params }: { params: { id: string } }
         </div>
 
         {/* ヒーロー画像 */}
-        {article.hero_image && (
+        {heroImage && (
           <div className="aspect-w-16 aspect-h-9 mb-6">
             <Image
-              src={article.hero_image}
+              src={heroImage}
               alt={article.title}
               width={1200}
               height={675}
@@ -110,7 +144,7 @@ export default async function ArticlePage({ params }: { params: { id: string } }
       </header>
 
       {/* 記事本文 */}
-      <div 
+      <div
         className="prose prose-lg max-w-none mb-12"
         dangerouslySetInnerHTML={{ __html: article.content }}
       />

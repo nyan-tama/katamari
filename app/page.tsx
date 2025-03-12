@@ -10,7 +10,8 @@ interface Article {
   id: string;
   title: string;
   content: string;
-  hero_image: string | null;
+  hero_image_id: string | null;
+  hero_image_url?: string | null; // 取得したURLを保存するためのフィールド
   status: string;
   created_at: string;
   author_id: string;
@@ -65,15 +66,64 @@ export default async function Home() {
     console.error("記事取得エラー:", error);
   }
 
+  // データに型を指定
+  const typedArticles = latestArticles as Article[] || [];
+
+  // ヒーロー画像情報を取得
+  if (typedArticles && typedArticles.length > 0) {
+    const articleIds = typedArticles.filter(a => a.hero_image_id).map(a => a.hero_image_id);
+
+    if (articleIds.length > 0) {
+      const { data: mediaData, error: mediaError } = await supabase
+        .from('article_media')
+        .select('*')
+        .in('id', articleIds);
+
+      if (!mediaError && mediaData) {
+        // メディア情報をマッピング
+        const mediaMap = mediaData.reduce((acc, media) => {
+          acc[media.id] = media;
+          return acc;
+        }, {} as Record<string, {
+          id: string;
+          storage_bucket: string;
+          storage_path: string;
+          [key: string]: unknown;
+        }>);
+
+        // 記事データにヒーロー画像URLを追加
+        typedArticles.forEach(article => {
+          if (article.hero_image_id && mediaMap[article.hero_image_id]) {
+            const media = mediaMap[article.hero_image_id];
+
+            // ストレージパスを適切にエンコード
+            const encodedPath = media.storage_path
+              .split('/')
+              .map((segment: string) => encodeURIComponent(segment))
+              .join('/');
+
+            const { data } = supabase.storage
+              .from(media.storage_bucket)
+              .getPublicUrl(encodedPath);
+
+            article.hero_image_url = data.publicUrl;
+          }
+        });
+      } else if (mediaError) {
+        console.error('ヒーロー画像の取得に失敗しました:', mediaError);
+      }
+    }
+  }
+
   // 著者のIDを取得
-  const authorIds = latestArticles?.map(article => article.author_id) || [];
-  
+  const authorIds = typedArticles?.map(article => article.author_id) || [];
+
   // 著者情報を取得
   const { data: authors } = await supabase
     .from('users')
     .select('*')
     .in('id', authorIds);
-    
+
   // 著者情報をマッピング
   const authorsMap: Record<string, User> = {};
   authors?.forEach(author => {
@@ -119,13 +169,13 @@ export default async function Home() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {latestArticles && latestArticles.map((article) => (
+          {typedArticles && typedArticles.map((article) => (
             <Link key={article.id} href={`/articles/${article.id}`} className="group">
               <div className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
                 <div className="w-full h-48 bg-gray-100 relative overflow-hidden">
-                  {article.hero_image ? (
+                  {article.hero_image_url ? (
                     <Image
-                      src={article.hero_image}
+                      src={article.hero_image_url}
                       alt={article.title}
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
