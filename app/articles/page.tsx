@@ -25,7 +25,16 @@ interface Author {
 }
 
 // ArticleCard コンポーネント
-function ArticleCard({ article, author }: { article: Article; author: Author }) {
+function ArticleCard({ article, author, currentPage }: {
+  article: Article;
+  author: Author;
+  currentPage?: string;
+}) {
+  // 記事詳細へのリンクにページパラメータを追加
+  const detailUrl = currentPage
+    ? `/articles/${article.id}?from_page=${currentPage}`
+    : `/articles/${article.id}`;
+
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
       {/* ヒーロー画像 */}
@@ -49,7 +58,7 @@ function ArticleCard({ article, author }: { article: Article; author: Author }) 
       {/* 記事情報 */}
       <div className="p-4">
         <h2 className="text-xl font-semibold mb-2 line-clamp-2">
-          <Link href={`/articles/${article.id}`} className="hover:text-indigo-600">
+          <Link href={detailUrl} className="hover:text-indigo-600">
             {article.title}
           </Link>
         </h2>
@@ -93,8 +102,11 @@ function ArticleCard({ article, author }: { article: Article; author: Author }) 
   );
 }
 
-export default async function ArticlesPage() {
+export default async function ArticlesPage({ searchParams }: { searchParams: { page?: string } }) {
   const supabase = createServerComponentClient({ cookies });
+
+  // 現在のページを取得
+  const currentPage = searchParams.page || '1';
 
   // 公開されている記事を取得
   const { data: articles, error } = await supabase
@@ -196,6 +208,7 @@ export default async function ArticlesPage() {
               key={article.id}
               article={article}
               author={authorsMap[article.author_id]}
+              currentPage={currentPage}
             />
           ))}
         </div>
