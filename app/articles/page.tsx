@@ -22,6 +22,7 @@ interface Author {
   name: string;
   avatar_url: string | null;
   default_avatar_url?: string | null;
+  avatar_storage_path?: string | null;
 }
 
 // Supabaseストレージからの公開URL取得
@@ -172,19 +173,20 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
                   {/* 著者情報 */}
                   <div className="flex items-center mb-3">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 border border-gray-300 shadow-sm">
-                      {authorsMap[article.author_id]?.avatar_url || authorsMap[article.author_id]?.default_avatar_url ? (
+                      {authorsMap[article.author_id]?.avatar_storage_path ? (
+                        // Supabaseにアップロードされたカスタムアバター
                         <Image
-                          src={
-                            // default_avatar_urlを優先（GoogleやGitHubのアバターなど）
-                            authorsMap[article.author_id]?.default_avatar_url?.startsWith('http')
-                              ? authorsMap[article.author_id]?.default_avatar_url || ''
-                              : authorsMap[article.author_id]?.default_avatar_url
-                                ? getPublicUrl('avatars', authorsMap[article.author_id]?.default_avatar_url || '')
-                                // avatar_urlを次に確認
-                                : authorsMap[article.author_id]?.avatar_url?.startsWith('http')
-                                  ? authorsMap[article.author_id]?.avatar_url || ''
-                                  : getPublicUrl('avatars', authorsMap[article.author_id]?.avatar_url || '')
-                          }
+                          src={getPublicUrl('avatars', authorsMap[article.author_id]?.avatar_storage_path || '')}
+                          alt={authorsMap[article.author_id]?.name || '不明なユーザー'}
+                          width={32}
+                          height={32}
+                          className="w-full h-full object-cover"
+                          unoptimized={true}
+                        />
+                      ) : authorsMap[article.author_id]?.default_avatar_url ? (
+                        // OAuth経由のアバター（GoogleやGitHubなど）
+                        <Image
+                          src={authorsMap[article.author_id]?.default_avatar_url || ''}
                           alt={authorsMap[article.author_id]?.name || '不明なユーザー'}
                           width={32}
                           height={32}
@@ -192,6 +194,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
                           unoptimized={true}
                         />
                       ) : (
+                        // デフォルトアバター（イニシャル）
                         <div className="w-full h-full bg-gray-100 flex items-center justify-center text-xs text-gray-600 border border-gray-200">
                           {authorsMap[article.author_id]?.name?.charAt(0).toUpperCase() || 'U'}
                         </div>

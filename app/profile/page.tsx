@@ -25,7 +25,6 @@ interface Article {
 interface UserProfile {
     id: string;
     name: string;
-    email: string;
     default_avatar_url: string | null;
     bio: string | null;
     website_url1: string | null;
@@ -146,7 +145,7 @@ export default function ProfilePage() {
             // ユーザープロフィール情報を取得 - 実際のテーブル構造に合わせたクエリ
             const { data: profileData, error: profileError } = await supabase
                 .from('users')
-                .select('id, name, email, default_avatar_url, bio, website_url1, website_url2, website_url3, avatar_storage_bucket, avatar_storage_path, twitter_url, instagram_url, facebook_url, tiktok_url, github_url, created_at, updated_at')
+                .select('id, name, default_avatar_url, bio, website_url1, website_url2, website_url3, avatar_storage_bucket, avatar_storage_path, twitter_url, instagram_url, facebook_url, tiktok_url, github_url, created_at, updated_at')
                 .eq('id', session.user.id)
                 .single();
 
@@ -156,7 +155,7 @@ export default function ProfilePage() {
                 // バックアッププラン: 最小限の情報だけを取得してみる
                 const { data: minimalProfileData, error: minimalError } = await supabase
                     .from('users')
-                    .select('id, name, email, default_avatar_url')
+                    .select('id, name, default_avatar_url')
                     .eq('id', session.user.id)
                     .single();
 
@@ -167,7 +166,6 @@ export default function ProfilePage() {
                     const userBasedProfile: UserProfile = {
                         id: session.user.id,
                         name: session.user.user_metadata?.full_name || '名前なし',
-                        email: session.user.email || '',
                         default_avatar_url: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null,
                         bio: null,
                         website_url1: null,
@@ -548,7 +546,6 @@ export default function ProfilePage() {
                             ) : (
                                 <div>
                                     <h1 className="text-2xl font-bold text-gray-800 mb-2">{profile?.name}</h1>
-                                    <p className="text-gray-600 mb-4">{user?.email}</p>
                                     <button
                                         onClick={handleEditToggle}
                                         className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md"

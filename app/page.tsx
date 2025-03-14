@@ -25,6 +25,7 @@ interface User {
   name: string;
   avatar_url: string | null;
   default_avatar_url?: string | null;
+  avatar_storage_path?: string | null;
 }
 
 // 日付フォーマットヘルパー関数
@@ -194,34 +195,36 @@ export default async function Home() {
                   <h3 className="font-medium text-gray-800 mb-1 group-hover:text-pink-500 transition-colors truncate">
                     {article.title}
                   </h3>
-                  <div className="flex items-center mt-2">
-                    <div className="w-6 h-6 bg-gray-200 rounded-full overflow-hidden flex-shrink-0 border border-gray-300 shadow-sm">
-                      {authorsMap[article.author_id]?.avatar_url || authorsMap[article.author_id]?.default_avatar_url ? (
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 rounded-full overflow-hidden mr-2">
+                      {authorsMap[article.author_id]?.avatar_storage_path ? (
+                        // Supabaseにアップロードされたカスタムアバター
                         <Image
-                          src={
-                            // default_avatar_urlを優先（GoogleやGitHubのアバターなど）
-                            authorsMap[article.author_id]?.default_avatar_url?.startsWith('http')
-                              ? authorsMap[article.author_id]?.default_avatar_url || ''
-                              : authorsMap[article.author_id]?.default_avatar_url
-                                ? getPublicUrl('avatars', authorsMap[article.author_id]?.default_avatar_url || '')
-                                // avatar_urlを次に確認
-                                : authorsMap[article.author_id]?.avatar_url?.startsWith('http')
-                                  ? authorsMap[article.author_id]?.avatar_url || ''
-                                  : getPublicUrl('avatars', authorsMap[article.author_id]?.avatar_url || '')
-                          }
+                          src={getPublicUrl('avatars', authorsMap[article.author_id]?.avatar_storage_path || '')}
                           alt={authorsMap[article.author_id]?.name || '不明なユーザー'}
-                          width={24}
-                          height={24}
-                          className="object-cover w-full h-full"
+                          width={32}
+                          height={32}
+                          className="w-full h-full object-cover"
+                          unoptimized={true}
+                        />
+                      ) : authorsMap[article.author_id]?.default_avatar_url ? (
+                        // OAuth経由のアバター（GoogleやGitHubなど）
+                        <Image
+                          src={authorsMap[article.author_id]?.default_avatar_url || ''}
+                          alt={authorsMap[article.author_id]?.name || '不明なユーザー'}
+                          width={32}
+                          height={32}
+                          className="w-full h-full object-cover"
                           unoptimized={true}
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs bg-gray-100 border border-gray-300">
+                        // デフォルトアバター（イニシャル）
+                        <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-600">
                           {authorsMap[article.author_id]?.name?.charAt(0).toUpperCase() || 'U'}
                         </div>
                       )}
                     </div>
-                    <span className="ml-2 text-sm text-gray-600">{authorsMap[article.author_id]?.name || '不明なユーザー'}</span>
+                    <span className="text-sm text-gray-700">{authorsMap[article.author_id]?.name || '不明なユーザー'}</span>
                   </div>
                   <div className="flex justify-between mt-1">
                     <p className="text-xs text-gray-500">{formatDate(article.created_at)}</p>
