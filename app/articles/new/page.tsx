@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import TipTapEditor from '../../components/Editor/TipTapEditor';
 import { createArticle, CreateArticleInput } from '../../../lib/api/articles';
 import { createClientSupabase } from '@/lib/supabase-client';
+import FileUploader from '../../components/FileUploader';
+import CustomFileSelector from '../../components/CustomFileSelector';
 
 export default function NewArticlePage() {
   const router = useRouter();
@@ -15,6 +17,8 @@ export default function NewArticlePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   // ページロード時にユーザー情報を取得
   useEffect(() => {
@@ -181,6 +185,17 @@ export default function NewArticlePage() {
 
         console.log('記事作成成功:', article);
 
+        // 記事の作成成功後
+        if (article.id && selectedFiles.length > 0) {
+          try {
+            // 選択されたファイルをアップロード
+            await uploadFiles(article.id, selectedFiles);
+          } catch (err) {
+            console.error('ファイルアップロードエラー:', err);
+            // エラー処理（オプション）
+          }
+        }
+
         // 成功したら記事詳細ページにリダイレクト
         router.push(`/articles/${article.id}`);
       } catch (err) {
@@ -194,6 +209,68 @@ export default function NewArticlePage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // ファイルアップロード関数
+  const uploadFiles = async (articleId: string, files: File[]) => {
+    console.log('ファイルアップロード処理開始：', { articleId, fileCount: files.length });
+
+    if (files.length === 0 || !userId) {
+      console.log('ファイルなし、またはユーザーIDなし。アップロード処理スキップ');
+      return;
+    }
+
+    const supabase = createClientSupabase();
+
+    for (const file of files) {
+      try {
+        console.log(`ファイル「${file.name}」のアップロード開始:`, { size: file.size, type: file.type });
+
+        // ファイル名のサニタイズ
+        const sanitizedFileName = file.name.replace(/\s+/g, '_').replace(/[^\w_.]/gi, '');
+        const fileName = `${Date.now()}_${sanitizedFileName}`;
+        const filePath = `${articleId}/${fileName}`;
+
+        console.log('アップロード先:', { bucket: 'downloads', filePath });
+
+        // Supabaseストレージにアップロード
+        const { data, error: uploadError } = await supabase.storage
+          .from('downloads')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: true
+          });
+
+        console.log('アップロード結果:', { data, error: uploadError });
+
+        if (uploadError) {
+          console.error(`ファイル「${file.name}」のアップロードに失敗:`, uploadError);
+          continue; // 失敗しても次のファイルを試す
+        }
+
+        // download_filesテーブルにメタデータを保存
+        const { data: fileData, error: fileError } = await supabase
+          .from('download_files')
+          .insert({
+            article_id: articleId,
+            storage_path: filePath,
+            file_size: file.size,
+            file_type: file.type,
+            storage_bucket: 'downloads',
+            original_name: file.name
+          });
+
+        console.log('メタデータ保存結果:', { data: fileData, error: fileError });
+
+        if (fileError) {
+          console.error(`ファイル「${file.name}」のメタデータ保存に失敗:`, fileError);
+        }
+      } catch (err) {
+        console.error(`ファイル「${file.name}」の処理中にエラー:`, err);
+      }
+    }
+
+    console.log('ファイルアップロード処理完了');
   };
 
   // ログインしていない場合はローディング状態を表示
@@ -255,10 +332,21 @@ export default function NewArticlePage() {
         <label className="block text-sm font-medium text-gray-700 mb-1">
           記事内容
         </label>
-        <TipTapEditor
-          content={content}
-          onChange={setContent}
+        <textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
           placeholder="記事の内容を入力してください..."
+          className="w-full p-3 border border-gray-300 rounded-md min-h-[300px]"
+          rows={10}
+        />
+      </div>
+
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          ダウンロードファイル
+        </label>
+        <CustomFileSelector
+          onFilesSelected={(files) => setSelectedFiles(files)}
         />
       </div>
 
