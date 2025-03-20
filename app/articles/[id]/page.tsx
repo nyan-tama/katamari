@@ -79,11 +79,16 @@ export default async function ArticlePage({ params, searchParams }: {
   const { data: { user } } = await supabase.auth.getUser();
   const isAuthor = user && article && user.id === article.author_id;
 
-  // 著者アバターURLを取得する関数
+  // 著者アバターURLを取得する関数を修正
   const getAuthorAvatarUrl = () => {
     if (!author) return '';
 
-    // default_avatar_urlを優先（GoogleやGitHubのアバターなど）
+    // カスタムアバターがある場合は最優先（ユーザーがアップロードしたもの）
+    if (author.avatar_storage_path) {
+      return getPublicUrl('avatars', author.avatar_storage_path);
+    }
+
+    // 次にデフォルトアバター（GoogleやGitHubのアバターなど）
     if (author.default_avatar_url) {
       if (author.default_avatar_url.startsWith('http')) {
         return author.default_avatar_url;
@@ -91,7 +96,7 @@ export default async function ArticlePage({ params, searchParams }: {
       return getPublicUrl('avatars', author.default_avatar_url);
     }
 
-    // 次にavatar_urlを確認
+    // 次にavatar_urlを確認（レガシーサポート用）
     if (author.avatar_url) {
       if (author.avatar_url.startsWith('http')) {
         return author.avatar_url;
