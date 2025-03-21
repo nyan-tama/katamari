@@ -349,6 +349,18 @@ export default function FileUploader({ articleId, onFilesUploaded }: FileUploade
                         folderPath = `${parentFolderName}`;
                     }
 
+                    // パスの長さをチェックして必要なら切り詰める（DBの制限を考慮）
+                    const MAX_PATH_LENGTH = 250; // データベースのパスカラム最大長
+                    if (folderPath.length > MAX_PATH_LENGTH) {
+                        console.warn(`パスが長すぎます: ${folderPath.length}文字 > ${MAX_PATH_LENGTH}文字`);
+                        console.warn(`元のパス: ${folderPath}`);
+
+                        // パスが長すぎる場合はエラーを設定してスキップ
+                        setError(`ファイル「${file.name}」のパスが長すぎます（${folderPath.length}文字）。もっと浅い階層でフォルダを作成してください。`);
+                        setErrorType('error');
+                        continue; // このファイルはスキップして次へ
+                    }
+
                     console.log('ファイル情報:', {
                         name: file.name,
                         originalPath,

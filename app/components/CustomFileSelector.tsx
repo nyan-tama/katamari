@@ -5,7 +5,6 @@ import { useDropzone } from 'react-dropzone';
 import {
     FolderIcon,
     DocumentIcon,
-    XMarkIcon,
     ChevronRightIcon,
     ChevronDownIcon
 } from '@heroicons/react/24/outline';
@@ -127,11 +126,21 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
         const systemFolderFiles: File[] = [];
         let detectedSystemFolder = '';
         let detectedSystemFiles: string[] = [];
+        let hasLongPathWarning = false;
+        const MAX_PATH_LENGTH = 250; // データベースのパスカラムの最大長を想定
 
         // システムファイルチェック用のログ
         console.log('ドロップされたファイル一覧:');
         acceptedFiles.forEach(file => {
             console.log(`- ${file.name} (${file.size} bytes)`);
+
+            // パスの長さをチェック
+            // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
+            const relativePath = file.webkitRelativePath || '';
+            if (relativePath && relativePath.length > MAX_PATH_LENGTH) {
+                console.log(`長すぎるパスを検出: ${relativePath.substring(0, 50)}... (${relativePath.length}文字)`);
+                hasLongPathWarning = true;
+            }
         });
 
         // 問題のないファイルをフィルタリング
@@ -188,6 +197,10 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
             // システムファイルが検出された場合
             setValidationError(`システムファイル "${detectedSystemFiles.join('", "')}" が検出されたため除外しました`);
             setValidationErrorType('warning'); // 警告タイプ
+        } else if (hasLongPathWarning) {
+            // 長すぎるパスがある場合
+            setValidationError(`フォルダの階層が深すぎるファイルが検出されました。パスが${MAX_PATH_LENGTH}文字を超えるとアップロードできません。より浅い階層のフォルダ構造を使用してください。`);
+            setValidationErrorType('warning');
         } else {
             setValidationError(null);
         }
@@ -238,12 +251,22 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
         const systemFolderFiles: File[] = [];
         let detectedSystemFolder = '';
         let detectedSystemFiles: string[] = [];
+        let hasLongPathWarning = false;
+        const MAX_PATH_LENGTH = 250; // データベースのパスカラムの最大長を想定
         const files = Array.from(evt.target.files);
 
         // システムファイルチェック用のログ
         console.log('フォルダ選択されたファイル一覧:');
         files.forEach(file => {
             console.log(`- ${file.name} (${file.size} bytes)`);
+
+            // パスの長さをチェック
+            // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
+            const relativePath = file.webkitRelativePath || '';
+            if (relativePath && relativePath.length > MAX_PATH_LENGTH) {
+                console.log(`長すぎるパスを検出: ${relativePath.substring(0, 50)}... (${relativePath.length}文字)`);
+                hasLongPathWarning = true;
+            }
         });
 
         // 問題のないファイルをフィルタリング
@@ -300,6 +323,10 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
             // システムファイルが検出された場合
             setValidationError(`システムファイル "${detectedSystemFiles.join('", "')}" が検出されたため除外しました`);
             setValidationErrorType('warning'); // 警告タイプ
+        } else if (hasLongPathWarning) {
+            // 長すぎるパスがある場合
+            setValidationError(`フォルダの階層が深すぎるファイルが検出されました。パスが${MAX_PATH_LENGTH}文字を超えるとアップロードできません。より浅い階層のフォルダ構造を使用してください。`);
+            setValidationErrorType('warning');
         } else {
             setValidationError(null);
         }
@@ -331,12 +358,6 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
         // 状態を更新
         setFiles(extendedFiles);
         onFilesSelected(filteredFiles);
-    };
-
-    const removeFile = (fileToRemove: ExtendedFile) => {
-        const newFiles = files.filter(f => f !== fileToRemove);
-        setFiles(newFiles);
-        onFilesSelected(newFiles.map(f => f.originalFile as File)); // 親コンポーネントに通知
     };
 
     // フォルダ構造を構築
@@ -492,13 +513,6 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
                 <span className="text-sm text-gray-500 mx-2">
                     {formatFileSize(fileSize)}
                 </span>
-                <button
-                    onClick={() => removeFile(file)}
-                    className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50"
-                    title="削除"
-                >
-                    <XMarkIcon className="h-4 w-4" />
-                </button>
             </li>
         );
     };
@@ -585,6 +599,12 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
 
                     <div>
                         <RenderFolder folder={folderStructure} path="" />
+                    </div>
+
+                    <div className="mt-4 bg-yellow-50 p-3 rounded-md text-sm text-yellow-700">
+                        <p className="font-medium">注意</p>
+                        <p>新たにアップロードすると今アップロードしているファイルはすべて置き換えられます</p>
+                        <p className="mt-1">一度にファイル選択をしアップロードするか、フォルダごとアップロードしましょう</p>
                     </div>
                 </div>
             )}

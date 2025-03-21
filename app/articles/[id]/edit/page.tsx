@@ -350,30 +350,24 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
             const parentFolderName = `3D-PRINTER-DOWNLOAD-DATA-${firstPart}-${secondPart}`;
             console.log('親フォルダ名:', parentFolderName);
 
-            // フォルダアップロードかどうかを判定
+            // フォルダアップロードのチェック
             // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
-            const hasFolder = safeFiles.some(file => file.webkitRelativePath && file.webkitRelativePath.includes('/'));
-
-            // フォルダアップロードの情報を取得
-            let firstPath = '';
-            if (hasFolder && safeFiles.length > 0) {
-                // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
-                firstPath = safeFiles[0].webkitRelativePath || '';
-            }
+            const hasFolder = files.some(file => file.webkitRelativePath);
+            console.log('フォルダアップロードの有無:', hasFolder);
 
             // 各ファイルを処理
-            for (const file of safeFiles) {
+            for (const file of files) {
                 try {
                     // 元のパス情報を取得
                     let originalPath = '';
                     let folderPath = '';
 
-                    if (hasFolder) {
+                    // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
+                    if (hasFolder && file.webkitRelativePath) {
                         // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
-                        originalPath = file.webkitRelativePath || '';
+                        originalPath = file.webkitRelativePath;
 
                         // 元のパスを親フォルダ名＋元のパスに変換
-                        // 例: abc/file.txt → 3D-PRINTER-DOWNLOAD-DATA-xxx/abc/file.txt
                         const pathParts = originalPath.split('/');
 
                         // ファイル名を除いたパスを作成
@@ -388,6 +382,18 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
                         // 単一ファイルの場合は親フォルダ直下
                         originalPath = file.name;
                         folderPath = `${parentFolderName}`;
+                    }
+
+                    // パスの長さをチェックして必要なら切り詰める（DBの制限を考慮）
+                    const MAX_PATH_LENGTH = 250; // データベースのパスカラム最大長
+                    if (folderPath.length > MAX_PATH_LENGTH) {
+                        console.warn(`パスが長すぎます: ${folderPath.length}文字 > ${MAX_PATH_LENGTH}文字`);
+                        console.warn(`元のパス: ${folderPath}`);
+
+                        // パスが長すぎる場合はエラーを設定してスキップ
+                        setFilesError(`ファイル「${file.name}」のパスが長すぎます（${folderPath.length}文字）。もっと浅い階層でフォルダを作成してください。`);
+                        setFilesErrorType('error');
+                        continue; // このファイルはスキップして次へ
                     }
 
                     console.log('ファイル情報:', {
