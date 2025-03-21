@@ -27,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja">
+    <html lang="ja" data-google-analytics-opt-out={process.env.NODE_ENV === 'development' ? 'true' : undefined}>
       <head>
         {/* Search Console 確認タグ */}
         <meta name="google-site-verification" content="提供されたコード" />
