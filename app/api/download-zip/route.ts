@@ -59,15 +59,36 @@ export async function GET(request: NextRequest) {
         // JSZipを使用してZIPファイルを作成
         const zip = new JSZip();
 
+        // ファイルをグループ化（同じフォルダ名のものをまとめる）
+        const fileGroups = files.reduce((groups: Record<string, any[]>, file) => {
+            const folderName = file.folder_name || 'default';
+            if (!groups[folderName]) {
+                groups[folderName] = [];
+            }
+            groups[folderName].push(file);
+            return groups;
+        }, {});
+
+        console.log('ファイルグループ:', Object.keys(fileGroups));
+
         // 各ファイルをダウンロードしてZIPに追加
         for (const file of files) {
             // ファイルのパス情報を確認（カラム名の違いに対応）
-            const storagePath = file.storage_path || file.file_path || file.path || `${articleId}/${file.original_name || file.filename}`;
-            const fileName = file.original_name || file.filename || 'unknown_file';
+            const storagePath = file.storage_path || file.file_path || '';
+            const fileName = file.original_name || file.file_name || 'unknown_file';
             const storageBucket = file.storage_bucket || 'downloads';
 
+            // ZIPファイル内でのパス構造を決定
+            let zipPath = fileName;
+
+            // pathフィールドがある場合、フォルダ構造を保持
+            if (file.path && file.path !== fileName) {
+                zipPath = file.path;
+            }
+
             console.log(`ファイル処理中: ${fileName}`);
-            console.log(`- パス情報: ${storagePath}`);
+            console.log(`- ストレージパス: ${storagePath}`);
+            console.log(`- ZIPパス: ${zipPath}`);
             console.log(`- バケット: ${storageBucket}`);
 
             try {
@@ -87,21 +108,52 @@ export async function GET(request: NextRequest) {
                 const arrayBuffer = await fileData.arrayBuffer();
                 console.log(`${fileName}をArrayBufferに変換: サイズ=${arrayBuffer.byteLength} バイト`);
 
-                // ファイルをZIPに追加（ArrayBufferを使用）
-                zip.file(fileName, arrayBuffer);
+                // ファイルをZIPに追加（ArrayBufferを使用）- パス構造を維持
+                zip.file(zipPath, arrayBuffer);
             } catch (fileError) {
                 console.error(`${fileName}の処理中にエラーが発生:`, fileError);
                 continue; // エラーのファイルはスキップして続行
             }
         }
 
+        // ダウンロードカウンターの更新（エラーがあっても処理続行）
+        try {
+            await supabase
+                .from('articles')
+                .update({ download_count: supabase.rpc('increment', { field: 'download_count' }) })
+                .eq('id', articleId);
+            console.log('ダウンロードカウンター更新');
+        } catch (countError) {
+            console.error('ダウンロードカウンターの更新に失敗:', countError);
+        }
+
         // ZIPファイルを生成
         const zipBlob = await zip.generateAsync({ type: 'blob' });
         const zipBuffer = await zipBlob.arrayBuffer();
 
+        // ファイル名の決定 - 3D-PRINTER-DOWNLOAD-DATA形式を使用
+        let zipFileName = `download-${articleId}.zip`;
+
+        // UUIDからフォルダ名を生成（アップロード時と同じ形式）
+        const uuidParts = articleId.split('-');
+        if (uuidParts.length >= 2) {
+            // 1つ目のパート（8桁）と2つ目のパート（最初の4桁）を使用
+            const firstPart = uuidParts[0];           // 例: 39dab4d8
+            const secondPart = uuidParts[1].substring(0, 4); // 例: f600 (f600から4文字)
+            const folderPrefix = `3D-PRINTER-DOWNLOAD-DATA-${firstPart}-${secondPart}`;
+            zipFileName = `${folderPrefix}.zip`;
+        }
+
+        // 記事タイトルがあれば、それをファイル名に併記
+        if (articleResult.data.title) {
+            // ファイル名に使えない文字を削除
+            const safeTitle = articleResult.data.title.replace(/[\\/:*?"<>|]/g, '_').substring(0, 50);
+            zipFileName = `${zipFileName.replace('.zip', '')}_${safeTitle}.zip`;
+        }
+
         // ファイルをレスポンスとして返す
         const response = new NextResponse(zipBuffer);
-        response.headers.set('Content-Disposition', `attachment; filename="download-${articleId}.zip"`);
+        response.headers.set('Content-Disposition', `attachment; filename="${zipFileName}"`);
         response.headers.set('Content-Type', 'application/zip');
 
         return response;

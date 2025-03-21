@@ -51,12 +51,36 @@ export default function DownloadFiles({ articleId, files }: DownloadFilesProps) 
             // レスポンスをBlobとして取得
             const blob = await response.blob();
 
+            // Content-Dispositionからファイル名を取得（サーバー側の命名を使用）
+            let fileName = '';
+            const contentDisposition = response.headers.get('content-disposition');
+            if (contentDisposition) {
+                const fileNameMatch = contentDisposition.match(/filename="(.+?)"/);
+                if (fileNameMatch && fileNameMatch[1]) {
+                    fileName = fileNameMatch[1];
+                }
+            }
+
+            // ファイル名が取得できなかった場合のフォールバック
+            if (!fileName) {
+                // UUIDからフォルダ名を生成（アップロード時と同じ形式）
+                const uuidParts = articleId.split('-');
+                if (uuidParts.length >= 2) {
+                    // 1つ目のパート（8桁）と2つ目のパート（最初の4桁）を使用
+                    const firstPart = uuidParts[0];           // 例: 39dab4d8
+                    const secondPart = uuidParts[1].substring(0, 4); // 例: f600 (f600から4文字)
+                    fileName = `3D-PRINTER-DOWNLOAD-DATA-${firstPart}-${secondPart}.zip`;
+                } else {
+                    fileName = `download-${articleId}.zip`;
+                }
+            }
+
             // ダウンロードリンクを作成
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
-            a.download = `download-${articleId}.zip`;
+            a.download = fileName;
             document.body.appendChild(a);
 
             // リンクをクリックしてダウンロード開始

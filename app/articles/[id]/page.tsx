@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import NavigationButtons from '@/app/components/NavigationButtons';
-import DownloadFiles from '@/app/components/DownloadFiles';
+import FileDownloader from '@/app/components/FileDownloader';
 
 // ビューカウント更新用のサーバーアクションを定義
 async function incrementViewCount(articleId: string) {
@@ -248,13 +248,10 @@ export default async function ArticlePage({ params, searchParams }: {
         dangerouslySetInnerHTML={{ __html: article.content }}
       />
 
-      {/* 添付ファイル一覧 */}
-      {downloadFiles && downloadFiles.length > 0 && (
-        <DownloadFiles
-          articleId={params.id}
-          files={downloadFiles}
-        />
-      )}
+      {/* 添付ファイル一覧 - FileDownloaderコンポーネントに置き換え */}
+      <FileDownloader
+        articleId={params.id}
+      />
 
       {/* ナビゲーション */}
       <div className="flex justify-between mt-12 pt-6 border-t border-gray-200">
