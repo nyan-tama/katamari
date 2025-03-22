@@ -528,6 +528,10 @@ export default function NewArticlePage() {
         </label>
         <CustomFileSelector
           onFilesSelected={(files) => setSelectedFiles(files)}
+          onFilesDeleted={() => {
+            // 新規作成時は単にUI上のファイル選択をクリアするだけでよい
+            setSelectedFiles([]);
+          }}
         />
       </div>
 

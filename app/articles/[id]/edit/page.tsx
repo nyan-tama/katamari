@@ -20,11 +20,12 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
     const [error, setError] = useState<string | null>(null);
     const [userId, setUserId] = useState<string | null>(null);
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-    const [existingFiles, setExistingFiles] = useState<any[]>([]);
+    const [existingFiles, setExistingFiles] = useState<DownloadFile[]>([]);
     const [articleStatus, setArticleStatus] = useState<'draft' | 'published'>('draft');
     const [filesError, setFilesError] = useState<string | null>(null);
     const [filesErrorType, setFilesErrorType] = useState<'error' | 'warning'>('error');
     const [uploading, setUploading] = useState(false);
+    const [filesToDelete, setFilesToDelete] = useState<string[]>([]);
 
     // ページロード時にユーザー情報と記事データを取得
     useEffect(() => {
@@ -123,21 +124,23 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
 
     // 記事の更新
     const handleUpdate = async (saveStatus: 'draft' | 'published' = 'draft') => {
-        try {
-            setIsSubmitting(true);
-            setError(null);
-            setFilesError(null);
+        if (!title) {
+            setError('タイトルを入力してください');
+            return;
+        }
 
+        if (!content) {
+            setError('内容を入力してください');
+            return;
+        }
+
+        setIsSubmitting(true);
+        setError(null);
+
+        try {
             // 記事IDが無効な場合は更新できない
             if (!articleId || !userId) {
-                setError('記事情報が取得できません');
-                setIsSubmitting(false);
-                return;
-            }
-
-            // タイトルが空の場合はエラー
-            if (!title.trim()) {
-                setError('タイトルを入力してください');
+                setError('記事IDまたはユーザーIDが無効です');
                 setIsSubmitting(false);
                 return;
             }
@@ -147,7 +150,7 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
             // システムファイルのリスト
             const systemFiles = ['.gitignore', 'HEAD', '.env', '.DS_Store', 'Thumbs.db', 'COMMIT_EDITMSG'];
 
-            let systemFolderFiles: File[] = [];
+            const systemFolderFiles: File[] = [];
             let detectedSystemFolder = '';
 
             // 問題のないファイルとシステムフォルダを含むファイルを分離
@@ -159,8 +162,7 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
                     return false; // システムファイルはフィルタリング
                 }
 
-                // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
-                const relativePath = file.webkitRelativePath || '';
+                const relativePath = (file as any).webkitRelativePath || '';
                 if (relativePath && relativePath.includes('/')) {
                     const pathParts = relativePath.split('/');
                     for (const part of pathParts) {
@@ -183,49 +185,46 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
                 setFilesErrorType('warning'); // 警告タイプに設定
             }
 
-            if (!userId) {
-                setError('ログインが必要です');
-                setIsSubmitting(false);
-                return;
-            }
-
-            const supabase = createClientSupabase();
-
-            // ヒーロー画像のアップロード（新たに選択されていれば）
+            // 画像アップロード処理
             let newHeroImageId = null;
             if (heroImage) {
                 try {
-                    // ファイル名のスペースをアンダースコアに置換し、特殊文字を除去
-                    const sanitizedFileName = heroImage.name.replace(/\s+/g, '_').replace(/[^\w_.]/gi, '');
-                    const filename = `${Date.now()}_${sanitizedFileName}`;
-                    const storagePath = `${userId}/hero_images/${filename}`;
+                    const supabase = createClientSupabase();
+                    const timestamp = Date.now();
+                    const fileName = heroImage.name.replace(/\s+/g, '-').toLowerCase();
+                    const fileExt = fileName.split('.').pop();
+                    const filePath = `${articleId}/${timestamp}_hero.${fileExt}`;
 
-                    // 画像をアップロード
+                    // ストレージにアップロード
                     const { error: uploadError } = await supabase.storage
-                        .from('article_media')
-                        .upload(storagePath, heroImage, {
+                        .from('articles')
+                        .upload(filePath, heroImage, {
                             cacheControl: '3600',
-                            upsert: false
+                            upsert: true
                         });
 
                     if (uploadError) {
                         throw new Error(`画像アップロードエラー: ${uploadError.message}`);
                     }
 
-                    // article_mediaテーブルに登録
+                    // メディア情報をDBに保存
                     const { data: mediaData, error: mediaError } = await supabase
                         .from('article_media')
                         .insert({
                             article_id: articleId,
-                            media_type: 'image',
-                            storage_bucket: 'article_media',
-                            storage_path: storagePath,
-                            media_role: 'hero'
+                            file_name: fileName,
+                            storage_path: filePath,
+                            file_size: heroImage.size,
+                            file_type: heroImage.type,
+                            storage_bucket: 'articles',
+                            media_type: 'hero',
+                            width: 0,
+                            height: 0
                         })
                         .select();
 
                     if (mediaError) {
-                        throw new Error(`ヒーロー画像情報の保存に失敗: ${mediaError.message}`);
+                        throw new Error(`メディア情報保存エラー: ${mediaError.message}`);
                     }
 
                     if (mediaData && mediaData.length > 0) {
@@ -265,10 +264,8 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
                 const updatedArticle = await updateArticle(articleId, updateData);
                 console.log('記事更新成功:', updatedArticle);
 
-                // 新しいファイルがあればアップロード
-                if (selectedFiles.length > 0) {
-                    await uploadFiles(articleId, safeFiles);
-                }
+                // ファイル処理（新規アップロードまたは既存ファイル削除）
+                await uploadFiles(articleId, safeFiles);
 
                 // 成功したら記事詳細ページにリダイレクト
                 router.push(`/articles/${articleId}`);
@@ -286,61 +283,58 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
 
     // ファイルアップロード関数
     const uploadFiles = async (articleId: string, files: File[]) => {
-        if (files.length === 0) return [];
-
         // アップロード中フラグをセット
         setUploading(true);
 
         try {
-            // システムフォルダのチェック（サブフォルダも含む）
-            const systemFolders = ['.git', 'node_modules', '.svn', '.hg', '.vscode'];
-            // システムファイルのリスト
-            const systemFiles = ['.gitignore', 'HEAD', '.env', '.DS_Store', 'Thumbs.db', 'COMMIT_EDITMSG'];
+            const supabase = createClientSupabase();
 
-            let systemFolderFiles: File[] = [];
-            let detectedSystemFolder = '';
+            // 削除対象のファイルを処理
+            if (filesToDelete.length > 0) {
+                console.log('削除予定ファイルを削除します', filesToDelete);
 
-            // 問題のないファイルとシステムフォルダを含むファイルを分離
-            const safeFiles = files.filter(file => {
-                // ファイル名だけでシステムファイルをチェック
-                const fileName = file.name.toLowerCase();
-                if (systemFiles.includes(fileName)) {
-                    console.log(`システムファイル検出: ${fileName}`);
-                    return false; // システムファイルはフィルタリング
-                }
+                // 削除対象のファイルを抽出
+                const filesToDeleteObj = existingFiles.filter(file => filesToDelete.includes(file.id));
 
-                // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
-                const relativePath = file.webkitRelativePath || '';
-                if (relativePath && relativePath.includes('/')) {
-                    const pathParts = relativePath.split('/');
-                    for (const part of pathParts) {
-                        if (systemFolders.includes(part)) {
-                            // システムフォルダを検出した場合
-                            if (!detectedSystemFolder) {
-                                detectedSystemFolder = part;
-                            }
-                            systemFolderFiles.push(file);
-                            return false; // このファイルはフィルタリング
+                // 削除対象のストレージファイルを削除
+                for (const file of filesToDeleteObj) {
+                    try {
+                        // ストレージからファイルを削除
+                        const { error: storageError } = await supabase.storage
+                            .from(file.storage_bucket)
+                            .remove([file.storage_path]);
+
+                        if (storageError) {
+                            console.error(`ファイル「${file.original_name}」のストレージからの削除に失敗:`, storageError);
                         }
+                    } catch (err) {
+                        console.error(`ファイル「${file.original_name}」の削除中にエラー:`, err);
                     }
                 }
-                return true; // 問題ないファイルは保持
-            });
 
-            // システムフォルダが見つかった場合は警告を表示
-            if (systemFolderFiles.length > 0) {
-                setFilesError(`"${detectedSystemFolder}" を含むパスのファイル(${systemFolderFiles.length}件)はシステム関連フォルダのためアップロードできませんので除外しました`);
-                setFilesErrorType('warning'); // 警告タイプに設定
+                // データベースから削除対象のファイルを削除
+                const { error: dbError } = await supabase
+                    .from('download_files')
+                    .delete()
+                    .in('id', filesToDelete);
+
+                if (dbError) {
+                    console.error('削除対象ファイル情報の削除に失敗:', dbError);
+                }
             }
 
-            // 安全なファイルがない場合は終了
-            if (safeFiles.length === 0) {
-                setFilesError('アップロードできるファイルがありません');
-                setFilesErrorType('error'); // エラータイプに設定
-                return [];
+            // 既存の残りのファイルを取得（削除対象外）
+            const remainingExistingFiles = existingFiles.filter(file => !filesToDelete.includes(file.id));
+
+            // 以前の既存ファイル削除処理は削除（削除対象のみを処理するようになったため）
+            // 新しいファイルがない場合は終了
+            if (files.length === 0) {
+                // 削除のみで追加がない場合はexistingFilesを更新
+                setFilesToDelete([]);
+                setExistingFiles(remainingExistingFiles);
+                return remainingExistingFiles;
             }
 
-            const supabase = createClientSupabase();
             const uploadedFiles = [];
 
             // UUIDの処理：1つ目のパート（8桁）と2つ目のパート（最初の4桁）を使用
@@ -351,109 +345,124 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
             console.log('親フォルダ名:', parentFolderName);
 
             // フォルダアップロードのチェック
-            // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
-            const hasFolder = files.some(file => file.webkitRelativePath);
+            const hasFolder = files.some(file => (file as any).webkitRelativePath);
             console.log('フォルダアップロードの有無:', hasFolder);
 
-            // 各ファイルを処理
-            for (const file of files) {
+            // 複数ファイルの並行アップロード
+            const uploadPromises = files.map(async (file) => {
                 try {
-                    // 元のパス情報を取得
                     let originalPath = '';
                     let folderPath = '';
 
-                    // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
-                    if (hasFolder && file.webkitRelativePath) {
+                    // パスの処理: フォルダアップロードかファイルのみか
+                    if (hasFolder) {
+                        // フォルダアップロードの場合
                         // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
-                        originalPath = file.webkitRelativePath;
+                        if (hasFolder && (file as any).webkitRelativePath) {
+                            // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
+                            originalPath = (file as any).webkitRelativePath;
 
-                        // 元のパスを親フォルダ名＋元のパスに変換
-                        const pathParts = originalPath.split('/');
+                            // 元のパスからフォルダパスを抽出（ファイル名を除く）
+                            const pathParts = originalPath.split('/');
 
-                        // ファイル名を除いたパスを作成
-                        if (pathParts.length > 1) {
-                            // パスの最初の部分を親フォルダ名に置き換え
-                            folderPath = `${parentFolderName}/${originalPath.substring(0, originalPath.lastIndexOf('/'))}`;
+                            // ファイル名を除いたパスを作成
+                            if (pathParts.length > 1) {
+                                // パスの最初の部分を親フォルダ名に置き換え
+                                folderPath = `${parentFolderName}/${originalPath.substring(0, originalPath.lastIndexOf('/'))}`;
+                            } else {
+                                // 単一階層の場合は親フォルダ直下
+                                folderPath = `${parentFolderName}`;
+                            }
                         } else {
-                            // 単一階層の場合は親フォルダ直下
+                            // フォルダアップロードだが、このファイルにwebkitRelativePathがない場合
                             folderPath = `${parentFolderName}`;
+                            originalPath = file.name;
                         }
                     } else {
-                        // 単一ファイルの場合は親フォルダ直下
-                        originalPath = file.name;
+                        // 通常のファイルアップロードの場合
                         folderPath = `${parentFolderName}`;
+                        originalPath = file.name;
                     }
 
-                    // パスの長さをチェックして必要なら切り詰める（DBの制限を考慮）
-                    const MAX_PATH_LENGTH = 250; // データベースのパスカラム最大長
-                    if (folderPath.length > MAX_PATH_LENGTH) {
-                        console.warn(`パスが長すぎます: ${folderPath.length}文字 > ${MAX_PATH_LENGTH}文字`);
-                        console.warn(`元のパス: ${folderPath}`);
-
-                        // パスが長すぎる場合はエラーを設定してスキップ
-                        setFilesError(`ファイル「${file.name}」のパスが長すぎます（${folderPath.length}文字）。もっと浅い階層でフォルダを作成してください。`);
-                        setFilesErrorType('error');
-                        continue; // このファイルはスキップして次へ
-                    }
-
-                    console.log('ファイル情報:', {
-                        name: file.name,
-                        originalPath,
-                        folderPath
-                    });
+                    console.log(`ファイルアップロード: 元のパス=${originalPath}, 保存先フォルダ=${folderPath}`);
 
                     // 安全なストレージパスの生成（タイムスタンプ + ファイル名）
                     const timestamp = Date.now();
                     const safeFileName = encodeURIComponent(file.name);
                     const storagePath = `${articleId}/${timestamp}_${safeFileName}`;
 
-                    // Supabaseストレージにアップロード
-                    const { data, error: uploadError } = await supabase.storage
+                    console.log(`最終ストレージパス: ${storagePath}`);
+
+                    // ストレージにアップロード
+                    const { data: storageData, error: storageError } = await supabase.storage
                         .from('downloads')
                         .upload(storagePath, file, {
                             cacheControl: '3600',
                             upsert: true
                         });
 
-                    if (uploadError) {
-                        console.error(`ファイル「${file.name}」のアップロードに失敗:`, uploadError);
-                        continue; // 失敗しても次のファイルを試す
+                    if (storageError) {
+                        console.error(`ファイル「${originalPath}」のアップロードに失敗:`, storageError);
+                        return null;
                     }
 
-                    // download_filesテーブルにメタデータ保存
-                    const { data: fileData, error: fileError } = await supabase
+                    // アップロードがうまくいった場合、データベースに情報を保存
+                    const { data: fileData, error: dbError } = await supabase
                         .from('download_files')
                         .insert({
                             article_id: articleId,
-                            original_name: file.name,
-                            path: `${folderPath}/`,             // ファイル名を含まないパス、末尾にスラッシュを追加
+                            storage_bucket: 'downloads',
                             storage_path: storagePath,
+                            original_name: file.name,
+                            path: `${folderPath}/`,  // 末尾にスラッシュを追加
                             file_size: file.size,
-                            file_type: file.type || '',
-                            mime_type: file.type || '',
-                            storage_bucket: 'downloads'
+                            file_type: file.type,
+                            mime_type: file.type || ''
                         })
-                        .select()
-                        .single();
+                        .select();
 
-                    if (fileError) {
-                        console.error(`ファイル「${file.name}」のメタデータ保存に失敗:`, fileError);
-                    } else if (fileData) {
-                        uploadedFiles.push(fileData);
+                    if (dbError) {
+                        console.error(`ファイル「${originalPath}」の情報保存に失敗:`, dbError);
+                        return null;
                     }
-                } catch (fileErr) {
-                    console.error(`ファイル「${file.name}」の処理中にエラー:`, fileErr);
-                }
-            }
 
-            console.log('アップロード完了:', uploadedFiles);
-            return uploadedFiles;
-        } catch (error) {
-            console.error('ファイルアップロードエラー:', error);
-            throw error;
-        } finally {
-            // 処理完了時にアップロード中フラグを解除
+                    return fileData[0] || null;
+                } catch (err) {
+                    console.error(`ファイル「${file.name}」の処理中にエラー:`, err);
+                    return null;
+                }
+            });
+
+            try {
+                const results = await Promise.all(uploadPromises);
+                // nullをフィルタリングして成功したアップロードのみを取得
+                const successfulUploads = results.filter(result => result !== null);
+                console.log(`${successfulUploads.length}/${files.length} ファイルのアップロードに成功`);
+
+                // 成功したアップロードがあれば選択ファイルリストを更新
+                if (successfulUploads.length > 0) {
+                    setSelectedFiles([]);
+                }
+
+                // 残りの既存ファイルとアップロードしたファイルを統合
+                const combinedFiles = [...remainingExistingFiles, ...successfulUploads.filter(Boolean)];
+
+                // 既存ファイル情報を更新
+                setExistingFiles(combinedFiles);
+                setFilesToDelete([]); // 削除リストをクリア
+
+                // 成功したファイルのみを返す
+                return combinedFiles;
+            } catch (err) {
+                console.error('ファイルアップロード中にエラーが発生しました:', err);
+                return [];
+            } finally {
+                setUploading(false);
+            }
+        } catch (err) {
+            console.error('ファイルアップロード処理中にエラーが発生しました:', err);
             setUploading(false);
+            return [];
         }
     };
 
@@ -617,43 +626,17 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
                 />
             </div>
 
-            {/* 既存のファイル一覧 */}
-            {existingFiles.length > 0 && (
-                <div className="mb-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-3">現在のファイル</h3>
-                    <div className="bg-gray-50 rounded-lg p-4 border">
-                        <ul className="divide-y">
-                            {existingFiles.map(file => (
-                                <li key={file.id} className="py-3 flex items-center justify-between">
-                                    <div className="flex items-center">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                        </svg>
-                                        <span className="truncate max-w-md">{file.original_name}</span>
-                                        <span className="ml-3 text-sm text-gray-500">{formatFileSize(file.file_size)}</span>
-                                    </div>
-                                    <button
-                                        onClick={() => handleDeleteFile(file.id)}
-                                        className="ml-4 text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-50"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                </div>
-            )}
-
-            {/* 新しいファイルアップロード */}
+            {/* ダウンロードファイル */}
             <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ダウンロードファイルを追加
+                    ダウンロードファイル
                 </label>
+
+                {/* ファイル選択UI - 既存ファイルを初期表示 */}
                 <CustomFileSelector
                     onFilesSelected={(files) => setSelectedFiles(files)}
+                    onFilesDeleted={(fileIds) => setFilesToDelete(fileIds)}
+                    initialFiles={existingFiles}
                 />
             </div>
 

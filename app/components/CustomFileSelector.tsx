@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, useEffect, useRef, memo } from 'react';
 import { useDropzone } from 'react-dropzone';
 import {
     FolderIcon,
@@ -11,6 +11,15 @@ import {
 
 interface CustomFileSelectorProps {
     onFilesSelected: (files: File[]) => void;
+    onFilesDeleted?: (fileIds: string[]) => void;
+    initialFiles?: {
+        id: string;
+        original_name: string;
+        file_size: number;
+        file_type: string;
+        storage_path: string;
+        path: string;
+    }[];
 }
 
 // ファイル拡張インターフェース（パス情報を追加）
@@ -25,6 +34,10 @@ interface ExtendedFile {
     name: string;
     size: number;
     type: string;
+    // 既存ファイル情報（編集時に使用）
+    id?: string;
+    storagePath?: string;
+    isExisting?: boolean;
 }
 
 // フォルダ構造のインターフェース
@@ -35,12 +48,146 @@ interface FolderNode {
     subfolders: Record<string, FolderNode>;
 }
 
-export default function CustomFileSelector({ onFilesSelected }: CustomFileSelectorProps) {
+function CustomFileSelector({ onFilesSelected, onFilesDeleted, initialFiles = [] }: CustomFileSelectorProps) {
     const [files, setFiles] = useState<ExtendedFile[]>([]);
     const [uploadMode, setUploadMode] = useState<'files' | 'folder'>('files');
     const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
     const [validationError, setValidationError] = useState<string | null>(null);
     const [validationErrorType, setValidationErrorType] = useState<'error' | 'warning'>('error');
+    const [folderStructure, setFolderStructure] = useState<FolderNode>({
+        name: 'root',
+        path: '',
+        files: [],
+        subfolders: {}
+    });
+    const [isFileListVisible, setIsFileListVisible] = useState(true);
+    const [isFolderViewVisible, setIsFolderViewVisible] = useState(false);
+
+    // initialFilesからExtendedFileへの変換
+    const initialExtendedFiles = useMemo(() => {
+        return initialFiles.map(file => {
+            // ダミーのFileオブジェクトを作成
+            const dummyFile = new File(
+                [new Blob([''], { type: file.file_type || 'application/octet-stream' })],
+                file.original_name,
+                { type: file.file_type || 'application/octet-stream' }
+            );
+
+            // パスはそのまま保持（変換しない）
+            const relativePath = file.path;
+
+            return {
+                originalFile: dummyFile,
+                relativePath,
+                name: file.original_name,
+                size: file.file_size,
+                type: file.file_type || '',
+                id: file.id,            // 既存ファイル識別用
+                storagePath: file.storage_path, // 既存ファイル削除用
+                isExisting: true        // 既存ファイルフラグ
+            } as ExtendedFile;
+        });
+    }, [initialFiles]);
+
+    // フォルダ構造を構築する関数
+    const updateFolderStructure = useCallback((fileList: ExtendedFile[]) => {
+        const newStructure: FolderNode = {
+            name: 'root',
+            path: '',
+            files: [],
+            subfolders: {}
+        };
+
+        // ルートレベルのファイルを保持する配列
+        const rootFiles: ExtendedFile[] = [];
+
+        // 各ファイルを処理
+        fileList.forEach(file => {
+            // 相対パスが無いファイルはルートに配置
+            if (!file.relativePath) {
+                rootFiles.push(file);
+                return;
+            }
+
+            // パスの部分を分解
+            const folders = file.relativePath.split('/');
+            const fileName = folders.pop() || ''; // 最後の部分（ファイル名）は除外
+
+            // 現在処理中のフォルダ
+            let currentFolder = newStructure;
+            let currentPath = '';
+
+            // 各フォルダレベルで処理
+            folders.forEach((folder) => {
+                // フォルダが作成済みでなければ作成
+                currentPath = currentPath ? `${currentPath}/${folder}` : folder;
+
+                if (!currentFolder.subfolders[folder]) {
+                    currentFolder.subfolders[folder] = {
+                        name: folder,
+                        path: currentPath,
+                        files: [],
+                        subfolders: {}
+                    };
+                }
+
+                currentFolder = currentFolder.subfolders[folder];
+            });
+
+            // 適切なフォルダにファイルを追加
+            currentFolder.files.push(file);
+        });
+
+        // ルートレベルのファイルを追加
+        newStructure.files = rootFiles;
+
+        setFolderStructure(newStructure);
+    }, []);
+
+    // 初期化済みかどうかを追跡するref
+    const isInitializedRef = useRef(false);
+
+    // 初期ファイルがある場合はセット
+    useEffect(() => {
+        // 初期化済みなら何もしない
+        if (isInitializedRef.current) {
+            return;
+        }
+
+        if (initialExtendedFiles.length > 0) {
+            isInitializedRef.current = true;
+            setFiles(initialExtendedFiles);
+            updateFolderStructure(initialExtendedFiles);
+
+            // 第二階層までのフォルダを展開状態に設定
+            const folderPaths = new Set<string>();
+            initialExtendedFiles.forEach(file => {
+                if (file.relativePath) {
+                    const parts = file.relativePath.split('/');
+
+                    // 第一階層のフォルダを追加
+                    if (parts.length > 0) {
+                        folderPaths.add(parts[0]);
+                    }
+
+                    // 第二階層のフォルダを追加（存在する場合）
+                    if (parts.length > 1) {
+                        folderPaths.add(`${parts[0]}/${parts[1]}`);
+                    }
+                }
+            });
+
+            // 展開状態を更新（第二階層まで）
+            const expandedState: Record<string, boolean> = {};
+            folderPaths.forEach(path => {
+                expandedState[path] = true;
+            });
+            setExpandedFolders(expandedState);
+
+            // 親コンポーネントにファイル選択を通知（Fileオブジェクトのみを渡す）
+            onFilesSelected(initialExtendedFiles.map(f => f.originalFile));
+        }
+    }, [initialExtendedFiles, onFilesSelected, updateFolderStructure]);
 
     // ファイル名バリデーション関数
     const validateFileName = (fileName: string): { valid: boolean; reason?: string } => {
@@ -135,8 +282,7 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
             console.log(`- ${file.name} (${file.size} bytes)`);
 
             // パスの長さをチェック
-            // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
-            const relativePath = file.webkitRelativePath || '';
+            const relativePath = (file as any).webkitRelativePath || '';
             if (relativePath && relativePath.length > MAX_PATH_LENGTH) {
                 console.log(`長すぎるパスを検出: ${relativePath.substring(0, 50)}... (${relativePath.length}文字)`);
                 hasLongPathWarning = true;
@@ -157,8 +303,7 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
                 }
             }
 
-            // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
-            const relativePath = file.webkitRelativePath || '';
+            const relativePath = (file as any).webkitRelativePath || '';
             if (relativePath && relativePath.includes('/')) {
                 console.log(`パスチェック: ${relativePath}`);
                 const pathParts = relativePath.split('/');
@@ -183,56 +328,68 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
                 }
             }
 
-            // ファイル名のバリデーション
+            return true; // 問題ないファイルは保持
+        });
+
+        // ファイル名のバリデーション
+        const invalidFiles: { name: string, reason: string }[] = [];
+        const validFiles = filteredFiles.filter(file => {
             const validation = validateFileName(file.name);
-            return validation.valid;
+            if (!validation.valid && validation.reason) {
+                invalidFiles.push({ name: file.name, reason: validation.reason });
+                return false;
+            }
+            return true;
         });
 
         // エラーメッセージの設定
         if (detectedSystemFolder && systemFolderFiles.length > 0) {
             // システムフォルダが検出された場合
             setValidationError(`"${detectedSystemFolder}" を含むパスのファイル(${systemFolderFiles.length}件)はシステム関連フォルダのためアップロードできませんので除外しました`);
-            setValidationErrorType('warning'); // 警告タイプに変更
+            setValidationErrorType('warning');
         } else if (detectedSystemFiles.length > 0) {
             // システムファイルが検出された場合
             setValidationError(`システムファイル "${detectedSystemFiles.join('", "')}" が検出されたため除外しました`);
-            setValidationErrorType('warning'); // 警告タイプ
-        } else if (hasLongPathWarning) {
-            // 長すぎるパスがある場合
-            setValidationError(`フォルダの階層が深すぎるファイルが検出されました。パスが${MAX_PATH_LENGTH}文字を超えるとアップロードできません。より浅い階層のフォルダ構造を使用してください。`);
             setValidationErrorType('warning');
+        } else if (hasLongPathWarning) {
+            setValidationError(`一部のファイルパスが長すぎます(${MAX_PATH_LENGTH}文字超)。もっと浅い階層でフォルダを作成してください。`);
+            setValidationErrorType('warning');
+        } else if (invalidFiles.length > 0) {
+            // 無効なファイルがある場合
+            const errorMessages = invalidFiles.map(f => `・${f.name}: ${f.reason}`).join('\n');
+            setValidationError(`以下のファイルはアップロードできません:\n${errorMessages}`);
+            setValidationErrorType('error');
         } else {
+            // エラーがなければクリア
             setValidationError(null);
         }
 
-        // 拡張ファイルオブジェクトを作成
-        const extendedFiles = filteredFiles.map(file => {
-            // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
-            const relativePath = file.webkitRelativePath || '';
+        if (validFiles.length === 0) {
+            return; // 有効なファイルがなければ終了
+        }
+
+        // パス情報を持つExtendedFileオブジェクトに変換
+        const extendedFiles = validFiles.map(file => {
+            // パス情報を取得
+            const relativePath = (file as any).webkitRelativePath || '';
 
             return {
                 originalFile: file,
-                relativePath,
+                relativePath: relativePath || '',
+                preview: URL.createObjectURL(file),
                 name: file.name,
                 size: file.size,
-                type: file.type,
-                // 画像ファイルの場合はプレビュー用URLを生成
-                preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
+                type: file.type
             };
         });
 
-        // ドロップ処理の結果をログ出力
-        console.log('処理結果:', {
-            元のファイル数: acceptedFiles.length,
-            フィルター後のファイル数: filteredFiles.length,
-            システムファイル: detectedSystemFiles,
-            システムフォルダ: detectedSystemFolder
-        });
-
-        // 状態を更新
+        // 既存ファイルを全て置き換える（上書きモード）
         setFiles(extendedFiles);
-        onFilesSelected(filteredFiles);
-    }, [onFilesSelected]);
+        updateFolderStructure(extendedFiles);
+
+        // 親コンポーネントに通知
+        onFilesSelected(validFiles);
+    }, [validateFileName, updateFolderStructure, onFilesSelected]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
@@ -261,8 +418,7 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
             console.log(`- ${file.name} (${file.size} bytes)`);
 
             // パスの長さをチェック
-            // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
-            const relativePath = file.webkitRelativePath || '';
+            const relativePath = (file as any).webkitRelativePath || '';
             if (relativePath && relativePath.length > MAX_PATH_LENGTH) {
                 console.log(`長すぎるパスを検出: ${relativePath.substring(0, 50)}... (${relativePath.length}文字)`);
                 hasLongPathWarning = true;
@@ -283,10 +439,9 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
                 }
             }
 
-            // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
-            const relativePath = file.webkitRelativePath || '';
-            if (relativePath) {
-                console.log(`フォルダパスチェック: ${relativePath}`);
+            const relativePath = (file as any).webkitRelativePath || '';
+            if (relativePath && relativePath.includes('/')) {
+                console.log(`パスチェック: ${relativePath}`);
                 const pathParts = relativePath.split('/');
                 // フォルダパスの各部分をチェック
                 for (const part of pathParts) {
@@ -309,59 +464,70 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
                 }
             }
 
-            // ファイル名のバリデーション
+            return true; // 問題ないファイルは保持
+        });
+
+        // ファイル名のバリデーション
+        const invalidFiles: { name: string, reason: string }[] = [];
+        const validFiles = filteredFiles.filter(file => {
             const validation = validateFileName(file.name);
-            return validation.valid;
+            if (!validation.valid && validation.reason) {
+                invalidFiles.push({ name: file.name, reason: validation.reason });
+                return false;
+            }
+            return true;
         });
 
         // エラーメッセージの設定
         if (detectedSystemFolder && systemFolderFiles.length > 0) {
             // システムフォルダが検出された場合
             setValidationError(`"${detectedSystemFolder}" を含むパスのファイル(${systemFolderFiles.length}件)はシステム関連フォルダのためアップロードできませんので除外しました`);
-            setValidationErrorType('warning'); // 警告タイプに変更
+            setValidationErrorType('warning');
         } else if (detectedSystemFiles.length > 0) {
             // システムファイルが検出された場合
             setValidationError(`システムファイル "${detectedSystemFiles.join('", "')}" が検出されたため除外しました`);
-            setValidationErrorType('warning'); // 警告タイプ
-        } else if (hasLongPathWarning) {
-            // 長すぎるパスがある場合
-            setValidationError(`フォルダの階層が深すぎるファイルが検出されました。パスが${MAX_PATH_LENGTH}文字を超えるとアップロードできません。より浅い階層のフォルダ構造を使用してください。`);
             setValidationErrorType('warning');
+        } else if (hasLongPathWarning) {
+            setValidationError(`一部のファイルパスが長すぎます(${MAX_PATH_LENGTH}文字超)。もっと浅い階層でフォルダを作成してください。`);
+            setValidationErrorType('warning');
+        } else if (invalidFiles.length > 0) {
+            // 無効なファイルがある場合
+            const errorMessages = invalidFiles.map(f => `・${f.name}: ${f.reason}`).join('\n');
+            setValidationError(`以下のファイルはアップロードできません:\n${errorMessages}`);
+            setValidationErrorType('error');
         } else {
+            // エラーがなければクリア
             setValidationError(null);
         }
 
+        if (validFiles.length === 0) {
+            return; // 有効なファイルがなければ終了
+        }
+
         // 拡張ファイルオブジェクトを作成
-        const extendedFiles = filteredFiles.map(file => {
-            // @ts-expect-error: webkitRelativePathはstandard DOMプロパティではない
-            const relativePath = file.webkitRelativePath || '';
+        const extendedFiles = validFiles.map(file => {
+            const relativePath = (file as any).webkitRelativePath || '';
 
             return {
                 originalFile: file,
                 relativePath,
+                preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
                 name: file.name,
                 size: file.size,
-                type: file.type,
-                // 画像ファイルの場合はプレビュー用URLを生成
-                preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
+                type: file.type
             };
         });
 
-        // フォルダ選択処理の結果をログ出力
-        console.log('フォルダ処理結果:', {
-            元のファイル数: files.length,
-            フィルター後のファイル数: filteredFiles.length,
-            システムファイル: detectedSystemFiles,
-            システムフォルダ: detectedSystemFolder
-        });
-
-        // 状態を更新
+        // 既存ファイルを全て置き換える（上書きモード）
         setFiles(extendedFiles);
-        onFilesSelected(filteredFiles);
+        updateFolderStructure(extendedFiles);
+
+        // 親コンポーネントに通知
+        onFilesSelected(validFiles);
     };
 
     // フォルダ構造を構築
-    const folderStructure = useMemo(() => {
+    const computedFolderStructure = useMemo(() => {
         const rootFolder: FolderNode = {
             name: 'root',
             path: '',
@@ -369,45 +535,55 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
             subfolders: {}
         };
 
-        // ファイルを階層構造に整理
+        // ファイルを処理してフォルダ構造に組み込む
         files.forEach(file => {
-            const relativePath = file.relativePath || file.name;
-
-            if (!relativePath.includes('/')) {
-                // ルートレベルのファイル
+            // パスがない場合はルートに追加
+            if (!file.relativePath || file.relativePath === file.name) {
                 rootFolder.files.push(file);
                 return;
             }
 
-            // フォルダ内のファイル
-            const pathParts = relativePath.split('/');
-            const fileName = pathParts.pop() || '';
+            // パスの部分を分解
+            const pathParts = file.relativePath.split('/');
+            // 最後の部分（ファイル名）を除外
+            if (pathParts.length > 0 && pathParts[pathParts.length - 1] === file.name) {
+                pathParts.pop();
+            }
 
-            // サブフォルダ構造を構築
+            // 現在処理中のフォルダ
             let currentFolder = rootFolder;
             let currentPath = '';
 
-            pathParts.forEach((part) => {
-                currentPath = currentPath ? `${currentPath}/${part}` : part;
+            // パスを辿りながらフォルダ構造を構築
+            for (const folder of pathParts) {
+                if (!folder) continue; // 空のフォルダ名はスキップ
 
-                if (!currentFolder.subfolders[part]) {
-                    currentFolder.subfolders[part] = {
-                        name: part,
+                // 現在のパスを更新
+                currentPath = currentPath ? `${currentPath}/${folder}` : folder;
+
+                // サブフォルダがなければ作成
+                if (!currentFolder.subfolders[folder]) {
+                    currentFolder.subfolders[folder] = {
+                        name: folder,
                         path: currentPath,
                         files: [],
                         subfolders: {}
                     };
                 }
 
-                currentFolder = currentFolder.subfolders[part];
-            });
+                // 次のフォルダレベルへ移動
+                currentFolder = currentFolder.subfolders[folder];
+            }
 
-            // ファイルをフォルダに追加
+            // 適切なフォルダにファイルを追加
             currentFolder.files.push(file);
         });
 
         return rootFolder;
     }, [files]);
+
+    // ファイルとフォルダの合計数を計算
+    const fileCount = files.length;
 
     // フォルダの開閉状態を切り替え
     const toggleFolder = (path: string) => {
@@ -430,8 +606,8 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
         const hasFiles = folder.files.length > 0;
         const hasSubfolders = Object.keys(folder.subfolders).length > 0;
 
+        // ルートフォルダの特別処理
         if (folder.name === 'root') {
-            // ルートフォルダは特別扱い
             return (
                 <div>
                     {/* ルートレベルのファイル */}
@@ -444,13 +620,84 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
                     )}
 
                     {/* サブフォルダー */}
-                    {Object.values(folder.subfolders).map(subfolder => (
-                        <RenderFolder
-                            key={subfolder.path}
-                            folder={subfolder}
-                            path={subfolder.path}
-                        />
-                    ))}
+                    {Object.entries(folder.subfolders).map(([folderName, subfolder]) => {
+                        // 3D-PRINTER-DOWNLOAD-DATA- で始まるフォルダは特別処理
+                        if (/^3D-PRINTER-DOWNLOAD-DATA-[a-f0-9]{8}-[a-f0-9]{4}$/i.test(folderName)) {
+                            // フォルダ自体は表示せず、その中身を直接表示するが、
+                            // サブフォルダには通常の開閉機能を持たせる
+                            return (
+                                <div key={subfolder.path}>
+                                    {/* このフォルダ内のファイル */}
+                                    {subfolder.files.length > 0 && (
+                                        <ul className="divide-y border-t border-b mb-4">
+                                            {subfolder.files.map((file, idx) => (
+                                                <FileItem key={`special-${idx}`} file={file} />
+                                            ))}
+                                        </ul>
+                                    )}
+
+                                    {/* このフォルダ内のサブフォルダ - フォルダ操作UIを表示 */}
+                                    {Object.entries(subfolder.subfolders).map(([subName, nestedFolder]) => {
+                                        const nestedPath = nestedFolder.path;
+                                        const isNestedExpanded = expandedFolders[nestedPath];
+
+                                        return (
+                                            <div key={nestedPath} className="mb-4">
+                                                <div
+                                                    className="flex items-center py-2 px-3 bg-gray-50 rounded cursor-pointer hover:bg-gray-100"
+                                                    onClick={() => toggleFolder(nestedPath)}
+                                                >
+                                                    {isNestedExpanded ? (
+                                                        <ChevronDownIcon className="h-4 w-4 mr-1 text-gray-500" />
+                                                    ) : (
+                                                        <ChevronRightIcon className="h-4 w-4 mr-1 text-gray-500" />
+                                                    )}
+                                                    <FolderIcon className="h-5 w-5 mr-2 text-yellow-500" />
+                                                    <span className="font-medium">{subName}</span>
+                                                    <span className="ml-2 text-sm text-gray-500">
+                                                        ({nestedFolder.files.length}ファイル
+                                                        {Object.keys(nestedFolder.subfolders).length > 0 &&
+                                                            `, ${Object.keys(nestedFolder.subfolders).length}フォルダ`})
+                                                    </span>
+                                                </div>
+
+                                                {isNestedExpanded && (
+                                                    <div className="pl-6 border-l ml-4 mt-2">
+                                                        {/* サブフォルダのファイル */}
+                                                        {nestedFolder.files.length > 0 && (
+                                                            <ul className="divide-y border-t border-b mb-4">
+                                                                {nestedFolder.files.map((file, index) => (
+                                                                    <FileItem key={`${nestedPath}-${index}`} file={file} />
+                                                                ))}
+                                                            </ul>
+                                                        )}
+
+                                                        {/* 更に深いサブフォルダー */}
+                                                        {Object.values(nestedFolder.subfolders).map(deepFolder => (
+                                                            <RenderFolder
+                                                                key={deepFolder.path}
+                                                                folder={deepFolder}
+                                                                path={deepFolder.path}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        }
+
+                        // 通常のフォルダは普通に表示
+                        return (
+                            <RenderFolder
+                                key={subfolder.path}
+                                folder={subfolder}
+                                path={subfolder.path}
+                            />
+                        );
+                    })}
                 </div>
             );
         }
@@ -595,10 +842,41 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
 
             {files.length > 0 && (
                 <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4">
-                    <h3 className="text-lg font-semibold mb-4">選択済みファイル ({files.length})</h3>
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-semibold">選択済みファイル ({files.length})</h3>
+                        <button
+                            type="button"
+                            className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                            onClick={() => {
+                                // 既存ファイルのIDを抽出
+                                const existingFileIds = files
+                                    .filter(file => file.isExisting && file.id)
+                                    .map(file => file.id as string);
+
+                                // 既存ファイルがあれば削除コールバックを呼び出し
+                                if (existingFileIds.length > 0 && onFilesDeleted) {
+                                    onFilesDeleted(existingFileIds);
+                                }
+
+                                // ファイルリストをクリア
+                                setFiles([]);
+                                setFolderStructure({
+                                    name: 'root',
+                                    path: '',
+                                    files: [],
+                                    subfolders: {}
+                                });
+
+                                // 親コンポーネントに空の配列を渡す
+                                onFilesSelected([]);
+                            }}
+                        >
+                            クリア
+                        </button>
+                    </div>
 
                     <div>
-                        <RenderFolder folder={folderStructure} path="" />
+                        <RenderFolder folder={computedFolderStructure} path="" />
                     </div>
 
                     <div className="mt-4 bg-yellow-50 p-3 rounded-md text-sm text-yellow-700">
@@ -610,4 +888,7 @@ export default function CustomFileSelector({ onFilesSelected }: CustomFileSelect
             )}
         </div>
     );
-} 
+}
+
+// memo化してエクスポート
+export default memo(CustomFileSelector); 
