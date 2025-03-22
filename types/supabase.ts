@@ -73,6 +73,35 @@ export interface Database {
                     updated_at?: string
                 }
             }
+            download_files: {
+                Row: {
+                    id: string
+                    article_id: string
+                    original_name: string
+                    storage_path: string
+                    file_size: number
+                    file_type: string
+                    storage_bucket: string
+                }
+                Insert: {
+                    id: string
+                    article_id: string
+                    original_name: string
+                    storage_path: string
+                    file_size: number
+                    file_type: string
+                    storage_bucket: string
+                }
+                Update: {
+                    id?: string
+                    article_id?: string
+                    original_name?: string
+                    storage_path?: string
+                    file_size?: number
+                    file_type?: string
+                    storage_bucket?: string
+                }
+            }
         }
         Views: {
             [_ in never]: never

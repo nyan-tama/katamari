@@ -54,21 +54,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'ファイルのダウンロードに失敗しました' }, { status: 500 });
     }
 
-    // ダウンロードカウントを増やす
-    await supabase
-      .from('files')
-      .update({ download_count: file.download_count + 1 })
-      .eq('id', fileId);
-
-    // 記事のダウンロードカウントも増やす
-    await supabase
-      .from('articles')
-      .update({ download_count: supabase.rpc('increment', { field: 'download_count' }) })
-      .eq('id', file.article_id);
-
     // ファイルをレスポンスとして返す
     const response = new NextResponse(fileData);
-    response.headers.set('Content-Disposition', `attachment; filename="${file.filename}"`);
+    response.headers.set('Content-Disposition', `attachment; filename="${file.original_name}"`);
     response.headers.set('Content-Type', 'application/octet-stream');
 
     return response;

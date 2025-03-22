@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import NavigationButtons from '@/app/components/NavigationButtons';
+import FileDownloader from '@/app/components/FileDownloader';
 
 // ビューカウント更新用のサーバーアクションを定義
 async function incrementViewCount(articleId: string) {
@@ -149,10 +150,14 @@ export default async function ArticlePage({ params, searchParams }: {
   }
 
   // 記事に添付されたファイルを取得
-  const { data: files, error: filesError } = await supabase
+  const { data: downloadFiles, error: filesError } = await supabase
     .from('download_files')
     .select('*')
     .eq('article_id', params.id);
+
+  // デバッグ用にログを追加
+  console.log('ダウンロードファイル:', JSON.stringify(downloadFiles));
+  console.log('ファイルエラー:', filesError);
 
   if (filesError) {
     console.error('ファイルの取得に失敗しました:', filesError);
@@ -243,38 +248,10 @@ export default async function ArticlePage({ params, searchParams }: {
         dangerouslySetInnerHTML={{ __html: article.content }}
       />
 
-      {/* 添付ファイル一覧 */}
-      {files && files.length > 0 && (
-        <div className="bg-gray-50 rounded-lg p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4">添付ファイル</h2>
-          <div className="space-y-3">
-            {files.map((file) => (
-              <div
-                key={file.id}
-                className="flex items-center justify-between p-3 bg-white rounded border border-gray-200"
-              >
-                <div className="flex items-center">
-                  <div className="mr-3 text-gray-400">📄</div>
-                  <div>
-                    <div className="font-medium">{file.filename}</div>
-                    <div className="text-xs text-gray-500">
-                      {(file.file_size / 1024).toFixed(2)} KB
-                    </div>
-                  </div>
-                </div>
-                <a
-                  href={`/api/download?fileId=${file.id}`}
-                  className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded text-sm hover:bg-indigo-200"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  ダウンロード
-                </a>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* 添付ファイル一覧 - FileDownloaderコンポーネントに置き換え */}
+      <FileDownloader
+        articleId={params.id}
+      />
 
       {/* ナビゲーション */}
       <div className="flex justify-between mt-12 pt-6 border-t border-gray-200">

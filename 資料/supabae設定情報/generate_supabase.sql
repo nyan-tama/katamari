@@ -96,10 +96,11 @@ CREATE TABLE IF NOT EXISTS public.article_metadata (
 CREATE TABLE IF NOT EXISTS public.download_files (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
-  filename TEXT NOT NULL,
+  file_name TEXT NOT NULL,
   file_path TEXT NOT NULL,
-  file_size INTEGER NOT NULL,
-  file_type TEXT,
+  file_size BIGINT NOT NULL,
+  mime_type TEXT,
+  download_count INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
@@ -120,7 +121,7 @@ CREATE INDEX IF NOT EXISTS idx_articles_author_id ON articles(author_id);
 CREATE INDEX IF NOT EXISTS idx_article_media_article_id ON article_media(article_id);
 CREATE INDEX IF NOT EXISTS idx_article_media_type ON article_media(media_type);
 CREATE INDEX IF NOT EXISTS idx_download_files_article_id ON download_files(article_id);
-CREATE INDEX IF NOT EXISTS idx_download_files_type ON download_files(file_type);
+CREATE INDEX IF NOT EXISTS idx_download_files_type ON download_files(mime_type);
 CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id);
 CREATE INDEX IF NOT EXISTS idx_favorites_article_id ON favorites(article_id);
 
