@@ -1,48 +1,34 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 
 interface HeroImageUploaderProps {
+    onImageSelected: (e: React.ChangeEvent<HTMLInputElement>) => void;
     currentImageUrl?: string | null;
-    onImageSelected: (file: File) => void;
     error?: string | null;
 }
 
 /**
  * ヒーロー画像アップロードコンポーネント
  */
-export default function HeroImageUploader({ 
-    currentImageUrl, 
+export default function HeroImageUploader({
     onImageSelected,
+    currentImageUrl,
     error
 }: HeroImageUploaderProps) {
-    const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
+    const [imagePreview, setImagePreview] = useState<string | null>(currentImageUrl || null);
 
-    // ヒーロー画像の選択ハンドラ
-    const handleHeroImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // 内部でのイメージ変更ハンドラ（プレビュー用）
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
-
-        // ファイルタイプの検証
-        if (!file.type.startsWith('image/')) {
-            console.error('画像ファイルのみアップロードできます');
-            return;
+        if (file) {
+            // プレビュー用のURLを作成
+            const objectUrl = URL.createObjectURL(file);
+            setImagePreview(objectUrl);
         }
-
-        // ファイルサイズの検証（5MB上限）
-        const maxSize = 5 * 1024 * 1024; // 5MB
-        if (file.size > maxSize) {
-            console.error('画像サイズは5MB以下にしてください');
-            return;
-        }
-
-        // 選択されたファイルを親コンポーネントに通知
-        onImageSelected(file);
-
-        // プレビューを設定
-        const objectUrl = URL.createObjectURL(file);
-        setPreviewUrl(objectUrl);
+        
+        // 親コンポーネントのハンドラを呼び出す
+        onImageSelected(e);
     };
 
     return (
@@ -54,16 +40,16 @@ export default function HeroImageUploader({
                 type="file"
                 id="heroImage"
                 accept="image/*"
-                onChange={handleHeroImageChange}
+                onChange={handleChange}
                 className="w-full"
             />
             {error && (
                 <p className="mt-1 text-sm text-red-600">{error}</p>
             )}
-            {previewUrl && (
+            {imagePreview && (
                 <div className="mt-2">
                     <img
-                        src={previewUrl}
+                        src={imagePreview}
                         alt="ヒーロー画像プレビュー"
                         className="max-h-64 object-cover rounded-md"
                     />
