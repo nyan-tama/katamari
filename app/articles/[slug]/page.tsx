@@ -41,7 +41,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function ArticlePage({ params, searchParams }: {
-  params: { id: string },
+  params: { slug: string },
   searchParams: { from_page?: string }
 }) {
   const supabase = createServerComponentClient({ cookies });
@@ -56,7 +56,7 @@ export default async function ArticlePage({ params, searchParams }: {
   const { data: article, error } = await supabase
     .from('articles')
     .select('*')
-    .eq('id', params.id)
+    .eq('slug', params.slug)
     .single();
 
   if (error || !article) {
@@ -153,7 +153,7 @@ export default async function ArticlePage({ params, searchParams }: {
   const { data: downloadFiles, error: filesError } = await supabase
     .from('download_files')
     .select('*')
-    .eq('article_id', params.id);
+    .eq('article_id', article.id);
 
   // デバッグ用にログを追加
   console.log('ダウンロードファイル:', JSON.stringify(downloadFiles));
@@ -165,7 +165,7 @@ export default async function ArticlePage({ params, searchParams }: {
   }
 
   // ビューカウントを増やす（実際のプロダクションでは重複カウントを防ぐ仕組みが必要）
-  await incrementViewCount(params.id);
+  await incrementViewCount(article.id);
 
   // 非公開状態かどうか
   const isDraft = article.status === 'draft';
@@ -216,7 +216,7 @@ export default async function ArticlePage({ params, searchParams }: {
           {/* 編集ボタン（著者のみ表示） */}
           {isAuthor && (
             <Link
-              href={`/articles/${article.id}/edit`}
+              href={`/articles/${article.slug}/edit`}
               className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 inline-flex items-center"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -248,16 +248,18 @@ export default async function ArticlePage({ params, searchParams }: {
         dangerouslySetInnerHTML={{ __html: article.content }}
       />
 
-      {/* 添付ファイル一覧 - FileDownloaderコンポーネントに置き換え */}
-      <FileDownloader
-        articleId={params.id}
-      />
-
-      {/* ナビゲーション */}
-      <div className="flex justify-between mt-12 pt-6 border-t border-gray-200">
-        {/* NavigationButtonsコンポーネントを使用 */}
-        <NavigationButtons />
+      {/* ナビゲーションボタン */}
+      <div className="mb-8">
+        <NavigationButtons backHref={articlesUrl} backLabel="記事一覧に戻る" />
       </div>
+
+      {/* ファイルダウンローダー */}
+      {downloadFiles && downloadFiles.length > 0 && (
+        <div className="mt-8 border-t pt-8">
+          <h2 className="text-2xl font-bold mb-4">ダウンロード</h2>
+          <FileDownloader articleId={article.id} />
+        </div>
+      )}
     </div>
   );
 } 
