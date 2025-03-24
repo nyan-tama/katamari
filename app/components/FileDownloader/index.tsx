@@ -92,7 +92,6 @@ export default function FileDownloader({ articleId }: FileDownloaderProps) {
             path: '',
             files: [],
             subfolders: {},
-            isExpanded: true
         };
 
         // 最初にすべてのファイルをパスで整理
@@ -121,8 +120,6 @@ export default function FileDownloader({ articleId }: FileDownloaderProps) {
                         path: `${currentPath}/`,
                         files: [],
                         subfolders: {},
-                        // 第二階層まで自動的に展開、または明示的に指定されたフォルダ
-                        isExpanded: level <= 2 || !!expandedFolders[currentPath]
                     };
                 }
 
@@ -136,7 +133,7 @@ export default function FileDownloader({ articleId }: FileDownloaderProps) {
         });
 
         return rootFolder;
-    }, [files, expandedFolders]);
+    }, [files]);
 
     // フォルダの開閉状態を切り替え
     const toggleFolder = (path: string) => {

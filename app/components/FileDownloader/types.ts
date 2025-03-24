@@ -24,5 +24,4 @@ export interface FolderNode {
     path: string;
     files: FileData[];
     subfolders: Record<string, FolderNode>;
-    isExpanded?: boolean;
 } 

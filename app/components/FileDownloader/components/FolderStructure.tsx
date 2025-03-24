@@ -27,7 +27,8 @@ const FolderStructure = ({
     onDownloadFolder,
     downloadingFolder
 }: FolderStructureProps) => {
-    const isExpanded = folder.isExpanded || !!expandedFolders[path];
+    // ルートフォルダは常に展開、それ以外はexpandedFoldersの状態に従う
+    const isExpanded = folder.name === 'root' || !!expandedFolders[path];
     const hasFiles = folder.files.length > 0;
     const hasSubfolders = Object.keys(folder.subfolders).length > 0;
 
