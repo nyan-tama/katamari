@@ -92,6 +92,26 @@ export async function getArticleById(id: string) {
   return data as Article
 }
 
+// slugによる記事の取得
+// Note: パフォーマンスのために、articles テーブルの slug カラムにインデックスを作成することを推奨します。
+// CREATE INDEX articles_slug_idx ON articles (slug);
+export async function getArticleBySlug(slug: string) {
+  const supabase = createClientSupabase()
+
+  const { data, error } = await supabase
+    .from('articles')
+    .select('*')
+    .eq('slug', slug)
+    .single()
+
+  if (error) {
+    console.error('記事の取得に失敗しました:', error)
+    throw error
+  }
+
+  return data as Article
+}
+
 // 新しい記事の作成
 export async function createArticle(authorId: string, articleData: CreateArticleInput) {
   const supabase = createClientSupabase()

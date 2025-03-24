@@ -17,7 +17,7 @@ export default function ArticleList({ articles }: ArticleListProps) {
             {articles.map((article) => (
                 <div key={article.id} className="bg-white rounded-lg shadow-md overflow-hidden">
                     {/* サムネイル画像部分をリンクにする */}
-                    <Link href={`/articles/${article.id}`} className="block">
+                    <Link href={`/articles/${article.slug}`} className="block">
                         <div className="aspect-video bg-gray-100 relative w-full" style={{ paddingBottom: '56.25%', height: 0, overflow: 'hidden' }}>
                             {article.hero_image_url ? (
                                 <img
@@ -40,7 +40,7 @@ export default function ArticleList({ articles }: ArticleListProps) {
                     </Link>
                     <div className="p-4">
                         <h3 className="text-lg font-semibold mb-2">
-                            <Link href={`/articles/${article.id}`}>
+                            <Link href={`/articles/${article.slug}`}>
                                 {article.title}
                             </Link>
                         </h3>

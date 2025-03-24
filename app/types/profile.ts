@@ -10,6 +10,7 @@ export interface Article {
     updated_at: string;
     view_count: number;
     download_count: number;
+    slug: string;
 }
 
 // ユーザープロフィール型定義
