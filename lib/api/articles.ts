@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { createClientSupabase } from '@/lib/supabase-client'
+import { generateIdAndSlug, generateSlugFromId } from '@/app/utils/slugGenerator'
 
 // 記事の型定義
 export interface Article {
@@ -14,6 +15,7 @@ export interface Article {
   download_count: number
   created_at: string
   updated_at: string
+  slug: string
 }
 
 // 記事作成用の型定義
@@ -23,6 +25,7 @@ export interface CreateArticleInput {
   hero_image_url?: string
   status: 'draft' | 'published'
   published_at?: string
+  slug?: string
 }
 
 // 記事更新用の型定義
@@ -32,6 +35,7 @@ export interface UpdateArticleInput {
   hero_image_url?: string
   status?: 'draft' | 'published'
   published_at?: string
+  slug?: string
 }
 
 // 全ての公開記事を取得
@@ -92,12 +96,17 @@ export async function getArticleById(id: string) {
 export async function createArticle(authorId: string, articleData: CreateArticleInput) {
   const supabase = createClientSupabase()
 
+  // 事前にUUIDを生成してslugを作成
+  const { id, slug } = generateIdAndSlug();
+
   const { data, error } = await supabase
     .from('articles')
     .insert([
       {
+        id, // 生成したUUIDを使用
         author_id: authorId,
         ...articleData,
+        slug: articleData.slug || slug, // 明示的に指定されていればそれを使用、なければ生成したslugを使用
       },
     ])
     .select()
