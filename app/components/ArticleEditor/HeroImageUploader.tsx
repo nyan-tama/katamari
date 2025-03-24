@@ -9,7 +9,7 @@ interface HeroImageUploaderProps {
 }
 
 /**
- * ヒーロー画像アップロードコンポーネント
+ * メイン画像アップロードコンポーネント
  */
 export default function HeroImageUploader({
     onImageSelected,
@@ -34,7 +34,7 @@ export default function HeroImageUploader({
     return (
         <div className="mb-6">
             <label htmlFor="heroImage" className="block text-sm font-medium text-gray-700 mb-1">
-                ヒーロー画像（オプション）
+                メイン画像（オプション）
             </label>
             <input
                 type="file"
@@ -50,7 +50,7 @@ export default function HeroImageUploader({
                 <div className="mt-2">
                     <img
                         src={imagePreview}
-                        alt="ヒーロー画像プレビュー"
+                        alt="メイン画像プレビュー"
                         className="max-h-64 object-cover rounded-md"
                     />
                 </div>

@@ -8,13 +8,13 @@ import type { Metadata } from 'next';
 
 // 記事一覧ページの静的メタデータ
 export const metadata: Metadata = {
-  title: '記事一覧 | 塊',
-  description: '3Dプリンターデータに関するプロジェクトを探しましょう。初心者向けのチュートリアルから上級者向けのテクニックまで様々な記事があります。',
-  keywords: ['3Dプリンター', 'データ', 'ダウンロード', 'モデル', '無料', '記事一覧', 'チュートリアル'],
+  title: '制作物一覧 | 塊',
+  description: '3Dプリンターデータに関するプロジェクトを探しましょう。初心者向けのチュートリアルから上級者向けのテクニックまで様々な制作物があります。',
+  keywords: ['3Dプリンター', 'データ', 'ダウンロード', 'モデル', '無料', '制作物一覧', 'チュートリアル'],
   
   openGraph: {
-    title: '記事一覧 | 塊',
-    description: '3Dプリンターデータに関するプロジェクトを探しましょう。初心者向けのチュートリアルから上級者向けのテクニックまで様々な記事があります。',
+    title: '制作物一覧 | 塊',
+    description: '3Dプリンターデータに関するプロジェクトを探しましょう。初心者向けのチュートリアルから上級者向けのテクニックまで様々な制作物があります。',
     url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://katamari.jp'}/articles`,
     siteName: '塊 | 3Dプリンターデータ共有サイト',
     locale: 'ja_JP',
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   
   twitter: {
     card: 'summary',
-    title: '記事一覧 | 塊',
+    title: '制作物一覧 | 塊',
     description:'3Dプリンターデータに関するプロジェクトを探しましょう。',
   }
 };
@@ -71,7 +71,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
   // 現在のページを取得
   const currentPage = searchParams.page || '1';
 
-  // 公開されている記事を取得
+  // 公開されている制作物を取得
   const { data: articles, error } = await supabase
     .from('articles')
     .select('*')
@@ -79,11 +79,11 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('記事の取得に失敗しました:', error);
-    return <div>記事の読み込み中にエラーが発生しました。</div>;
+    console.error('制作物の取得に失敗しました:', error);
+    return <div>制作物の読み込み中にエラーが発生しました。</div>;
   }
 
-  // ヒーロー画像の情報を取得
+  // メイン画像の情報を取得
   const articleIds = articles.filter(a => a.hero_image_id).map(a => a.hero_image_id);
 
   if (articleIds.length > 0) {
@@ -104,7 +104,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
         [key: string]: unknown;
       }>);
 
-      // 記事データにヒーロー画像URLを追加
+      // 制作物データにメイン画像URLを追加
       articles.forEach(article => {
         if (article.hero_image_id && mediaMap[article.hero_image_id]) {
           const media = mediaMap[article.hero_image_id];
@@ -123,7 +123,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
         }
       });
     } else if (mediaError) {
-      console.error('ヒーロー画像の取得に失敗しました:', mediaError);
+      console.error('メイン画像の取得に失敗しました:', mediaError);
     }
   }
 
@@ -149,20 +149,20 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">記事一覧</h1>
+        <h1 className="text-3xl font-bold">制作物一覧</h1>
         <Link
           href="/articles/new"
           className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
         >
-          新規記事作成
+          新規制作物作成
         </Link>
       </div>
 
       {articles.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-lg text-gray-600">記事はまだありません。</p>
+          <p className="text-lg text-gray-600">制作物はまだありません。</p>
           <p className="mt-2 text-gray-500">
-            最初の記事を作成してみましょう！
+            最初の制作物を作成してみましょう！
           </p>
         </div>
       ) : (
@@ -170,7 +170,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
           {articles.map((article) => (
             <Link key={article.id} href={`/articles/${article.slug}?from_page=${currentPage}`} className="block">
               <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                {/* ヒーロー画像 */}
+                {/* メイン画像 */}
                 <div className="aspect-w-16 aspect-h-9">
                   {article.hero_image_url ? (
                     <Image
@@ -188,7 +188,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
                   )}
                 </div>
 
-                {/* 記事情報 */}
+                {/* 制作物情報 */}
                 <div className="p-4">
                   <h2 className="text-xl font-semibold mb-2 line-clamp-2 hover:text-indigo-600">
                     {article.title}

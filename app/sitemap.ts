@@ -23,11 +23,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     const { data: articles } = await supabase
         .from('articles')
-        .select('id, updated_at')
+        .select('slug, updated_at')
         .order('updated_at', { ascending: false });
 
     const articlePages = articles?.map((article) => ({
-        url: `${baseUrl}/articles/${article.id}`,
+        url: `${baseUrl}/articles/${article.slug}`,
         lastModified: new Date(article.updated_at),
     })) || [];
 

@@ -1,126 +1,276 @@
 'use client';
 
-import { useEffect } from 'react';
-import useArticleForm from '@/app/hooks/useArticleForm';
+import { useState, FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { EditorContent } from '@tiptap/react';
+import { useArticleForm } from '@/app/hooks/useArticleForm';
 import HeroImageUploader from './HeroImageUploader';
-import CustomFileSelector from '@/app/components/CustomFileSelector';
+import FileSelector from './FileSelector';
+import { ErrorWithMessage } from '@/app/types/error';
+import ActionButtons from './ActionButtons';
 
 /**
  * 新規記事作成フォームコンポーネント
  */
 export default function NewArticleForm() {
+  const router = useRouter();
+  const supabase = createClientComponentClient();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fileUploadError, setFileUploadError] = useState<string | null>(null);
+
   const {
-    title,
-    setTitle,
-    content,
-    setContent,
-    handleHeroImageChange,
-    isSubmitting,
-    error,
-    filesError,
-    filesErrorType,
-    userId,
-    selectedFiles,
-    setSelectedFiles,
-    handleSave
+    title, setTitle,
+    editor,
+    heroImageId, setHeroImageId,
+    heroImageFile, setHeroImageFile,
+    selectedFiles, setSelectedFiles
   } = useArticleForm();
 
-  // ログインしていない場合はローディング状態を表示
-  if (userId === null) {
-    return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <p className="text-center">ログイン状態を確認中...</p>
-      </div>
-    );
-  }
-
+  const handleSubmit = async (event: FormEvent, isDraft: boolean) => {
+    event.preventDefault();
+    
+    if (!title.trim()) {
+      setError('タイトルを入力してください');
+      return;
+    }
+    
+    if (!editor?.getHTML() || editor?.getHTML() === '<p></p>') {
+      setError('制作物の内容を入力してください');
+      return;
+    }
+    
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      setFileUploadError(null);
+      
+      // ログインしているユーザーの情報を取得
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        setError('ログインが必要です');
+        return;
+      }
+      
+      // メイン画像があれば先にアップロードする
+      let heroImageIdToUse = heroImageId;
+      
+      if (heroImageFile && !heroImageId) {
+        try {
+          const timestamp = Date.now();
+          const fileExt = heroImageFile.name.split('.').pop();
+          const filePath = `hero-images/${user.id}/${timestamp}.${fileExt}`;
+          
+          const { error: uploadError, data } = await supabase.storage
+            .from('article-media')
+            .upload(filePath, heroImageFile);
+          
+          if (uploadError) {
+            throw uploadError;
+          }
+          
+          // メディアレコードを作成
+          const { data: mediaData, error: mediaError } = await supabase
+            .from('media')
+            .insert({
+              storage_bucket: 'article-media',
+              storage_path: filePath,
+              filename: heroImageFile.name,
+              content_type: heroImageFile.type,
+              user_id: user.id
+            })
+            .select('id')
+            .single();
+          
+          if (mediaError) {
+            throw mediaError;
+          }
+          
+          heroImageIdToUse = mediaData.id;
+        } catch (e) {
+          console.error('メイン画像のアップロードエラー:', e);
+          setFileUploadError('メイン画像のアップロードに失敗しました');
+          return;
+        }
+      }
+      
+      // 添付ファイルをアップロード（もしあれば）
+      const fileIds: Record<string, string> = {};
+      
+      if (selectedFiles.length > 0) {
+        for (const file of selectedFiles) {
+          if (file.fileId) {
+            // 既存のファイルの場合はIDをそのまま使用
+            fileIds[file.fileId] = file.name;
+          } else if (file.file) {
+            // 新しいファイルの場合はアップロード
+            try {
+              const timestamp = Date.now();
+              const fileExt = file.file.name.split('.').pop();
+              const filePath = `download-files/${user.id}/${timestamp}_${file.file.name}`;
+              
+              const { error: uploadError } = await supabase.storage
+                .from('article-files')
+                .upload(filePath, file.file);
+              
+              if (uploadError) {
+                throw uploadError;
+              }
+              
+              // ファイルレコードを作成
+              const { data: fileData, error: fileError } = await supabase
+                .from('download_files')
+                .insert({
+                  storage_bucket: 'article-files',
+                  storage_path: filePath,
+                  filename: file.file.name,
+                  display_name: file.name || file.file.name,
+                  content_type: file.file.type,
+                  size_bytes: file.file.size,
+                  user_id: user.id
+                })
+                .select('id')
+                .single();
+              
+              if (fileError) {
+                throw fileError;
+              }
+              
+              fileIds[fileData.id] = file.name || file.file.name;
+            } catch (e) {
+              console.error('添付ファイルのアップロードエラー:', e);
+              setFileUploadError('ファイルのアップロードに失敗しました');
+              return;
+            }
+          }
+        }
+      }
+      
+      // タイトルからスラグを生成
+      const slug = title
+        .trim()
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        + '-' + Date.now().toString().slice(-6);
+      
+      // 制作物を作成
+      const { data: article, error: articleError } = await supabase
+        .from('articles')
+        .insert({
+          title: title.trim(),
+          slug: slug,
+          content: editor?.getHTML() || '',
+          author_id: user.id,
+          status: isDraft ? 'draft' : 'published',
+          hero_image_id: heroImageIdToUse || null
+        })
+        .select('id, slug')
+        .single();
+      
+      if (articleError) {
+        throw articleError;
+      }
+      
+      // 添付ファイルの関連付けを作成
+      if (Object.keys(fileIds).length > 0) {
+        const attachments = Object.entries(fileIds).map(([fileId, displayName]) => ({
+          article_id: article.id,
+          file_id: fileId,
+          display_name: displayName
+        }));
+        
+        const { error: attachError } = await supabase
+          .from('article_attachments')
+          .insert(attachments);
+        
+        if (attachError) {
+          console.error('添付ファイルの関連付けに失敗:', attachError);
+          // エラーがあっても続行する（制作物自体は作成されている）
+        }
+      }
+      
+      // 成功したら詳細ページにリダイレクト
+      router.push(`/articles/${article.slug}`);
+      router.refresh();
+    } catch (e) {
+      console.error('制作物作成エラー:', e);
+      const err = e as ErrorWithMessage;
+      setError(err.message || '制作物の作成に失敗しました');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-6">新しい記事を作成</h1>
-
+      <h1 className="text-3xl font-bold mb-8">新しい制作物を作成</h1>
+      
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
           {error}
         </div>
       )}
-
-      {filesError && (
-        <div className={`${filesErrorType === 'error'
-          ? 'bg-red-100 border-2 border-red-400 text-red-700'
-          : 'bg-yellow-100 border-2 border-yellow-400 text-yellow-700'} px-4 py-3 rounded mb-4`}>
-          <div className="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
-            <span className="font-medium">{filesErrorType === 'error' ? 'ファイルエラー' : '注意'}</span>
-          </div>
-          <div className="mt-1 whitespace-pre-line">{filesError}</div>
+      
+      {fileUploadError && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded mb-6">
+          {fileUploadError} - 制作物は保存されていません。再度お試しください。
         </div>
       )}
-
-      <div className="mb-6">
-        <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-          タイトル
-        </label>
-        <input
-          type="text"
-          id="title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-          placeholder="記事のタイトルを入力してください"
+      
+      <form onSubmit={(e) => handleSubmit(e, false)}>
+        <div className="mb-6">
+          <label htmlFor="title" className="block text-gray-700 font-medium mb-2">
+            タイトル
+          </label>
+          <input
+            type="text"
+            id="title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+            placeholder="制作物のタイトルを入力"
+            required
+          />
+        </div>
+        
+        <div className="mb-8">
+          <HeroImageUploader
+            heroImageId={heroImageId}
+            setHeroImageId={setHeroImageId}
+            heroImageFile={heroImageFile} 
+            setHeroImageFile={setHeroImageFile}
+          />
+        </div>
+        
+        <div className="mb-6">
+          <label className="block text-gray-700 font-medium mb-2">
+            内容
+          </label>
+          <div className="min-h-[300px] border border-gray-300 rounded-md p-4 mb-2">
+            <EditorContent editor={editor} />
+          </div>
+          <p className="text-sm text-gray-500">
+            制作物の詳細、作り方、使用方法などを記入してください。
+          </p>
+        </div>
+        
+        <div className="mb-8">
+          <FileSelector 
+            selectedFiles={selectedFiles}
+            setSelectedFiles={setSelectedFiles}
+          />
+        </div>
+        
+        <ActionButtons 
+          onDraftClick={(e) => handleSubmit(e, true)} 
+          onPublishClick={(e) => handleSubmit(e, false)}
+          isSubmitting={isSubmitting}
         />
-      </div>
-
-      <HeroImageUploader
-        onImageSelected={handleHeroImageChange}
-        error={null}
-      />
-
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          記事内容
-        </label>
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="記事の内容を入力してください..."
-          className="w-full p-3 border border-gray-300 rounded-md min-h-[300px]"
-          rows={10}
-        />
-      </div>
-
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          ダウンロードファイル
-        </label>
-        <CustomFileSelector
-          onFilesSelected={(files: File[]) => setSelectedFiles(files)}
-          onFilesDeleted={() => {
-            // 新規作成時は単にUI上のファイル選択をクリアするだけでよい
-            setSelectedFiles([]);
-          }}
-        />
-      </div>
-
-      <div className="flex justify-end gap-4">
-        <button
-          type="button"
-          onClick={() => handleSave('draft')}
-          disabled={isSubmitting}
-          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
-        >
-          下書き保存
-        </button>
-        <button
-          type="button"
-          onClick={() => handleSave('published')}
-          disabled={isSubmitting}
-          className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
-        >
-          公開する
-        </button>
-      </div>
+      </form>
     </div>
   );
 } 

@@ -22,11 +22,11 @@ async function incrementViewCount(articleId: string) {
     .eq('id', articleId);
 }
 
-// 記事データを取得する関数（メタデータ生成用に分離）
+// 制作物データを取得する関数（メタデータ生成用に分離）
 async function getArticleData(slug: string) {
   const supabase = createServerComponentClient({ cookies });
   
-  // 記事データを取得
+  // 制作物データを取得
   const { data: article, error } = await supabase
     .from('articles')
     .select('*')
@@ -34,7 +34,7 @@ async function getArticleData(slug: string) {
     .single();
 
   if (error || !article) {
-    console.error('記事の取得に失敗しました:', error);
+    console.error('制作物の取得に失敗しました:', error);
     return null;
   }
 
@@ -49,82 +49,86 @@ async function getArticleData(slug: string) {
     console.error('著者情報の取得に失敗しました:', authorError);
   }
 
-  // ヒーロー画像のURLを取得
-  let heroImage = null;
+  // 制作物のヒーロー画像を取得
+  let heroImageUrl = null;
   if (article.hero_image_id) {
-    const { data: media, error: mediaError } = await supabase
-      .from('article_media')
-      .select('*')
+    const { data: media } = await supabase
+      .from('media')
+      .select('url')
       .eq('id', article.hero_image_id)
       .single();
-
-    if (!mediaError && media) {
-      const { data } = supabase.storage
-        .from(media.storage_bucket)
-        .getPublicUrl(media.storage_path);
-      
-      heroImage = data.publicUrl;
+    
+    if (media) {
+      heroImageUrl = media.url;
     }
   }
 
-  return { article, author, heroImage };
+  // 添付ファイルを取得
+  const { data: attachments, error: attachmentsError } = await supabase
+    .from('article_attachments')
+    .select('id, file_id, file_name, display_name, download_count')
+    .eq('article_id', article.id);
+
+  if (attachmentsError) {
+    console.error('添付ファイルの取得に失敗しました:', attachmentsError);
+  }
+
+  return {
+    article,
+    author: author || null,
+    heroImageUrl,
+    attachments: attachments || []
+  };
 }
 
-// 動的メタデータ生成関数
+// 動的メタデータを生成する関数
 export async function generateMetadata(
   { params }: { params: { slug: string } },
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  // 記事データを取得
   const data = await getArticleData(params.slug);
   
   if (!data || !data.article) {
     return {
-      title: 'ページが見つかりません | 塊',
-      description: 'お探しの記事は見つかりませんでした。',
+      title: '制作物が見つかりません',
+      description: '要求された制作物は存在しないか、削除された可能性があります。'
     };
   }
+
+  const { article, author, heroImageUrl } = data;
   
-  const { article, author, heroImage } = data;
-  
-  // コンテンツからHTMLタグを除去してプレーンテキストを作成
-  const plainContent = article.content.replace(/<[^>]*>/g, '').substring(0, 160);
-  
-  // 親メタデータからサイト全体の設定を継承
+  // 親メタデータを取得
   const previousImages = (await parent).openGraph?.images || [];
-  const siteName = '塊 | 3Dプリンターデータ共有サイト';
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://katamari.jp';
   
   return {
     title: `${article.title} | 塊`,
-    description: plainContent,
-    keywords: ['3Dプリンター', 'データ', 'ダウンロード', 'モデル', '無料', article.title],
+    description: article.description || `${article.title}に関する制作物です。詳しい情報をご覧ください。`,
+    keywords: [
+      '3Dプリンター', 
+      'モデル', 
+      article.title,
+      ...((article.tags as string[]) || [])
+    ],
     
-    // OGP (Open Graph Protocol) タグ
     openGraph: {
       title: article.title,
-      description: plainContent,
-      url: `${baseUrl}/articles/${article.slug}`,
-      siteName: siteName,
-      images: [
-        heroImage 
-          ? heroImage
-          : `${baseUrl}/images/default-og-image.jpg`,
-        ...previousImages,
-      ],
-      locale: 'ja_JP',
+      description: article.description || `${article.title}に関する制作物です。`,
       type: 'article',
-      publishedTime: article.created_at,
+      url: `${process.env.NEXT_PUBLIC_BASE_URL}/articles/${article.slug}`,
+      images: heroImageUrl 
+        ? [heroImageUrl]
+        : previousImages,
+      publishedTime: article.published_at,
       modifiedTime: article.updated_at,
-      authors: author ? [`${baseUrl}/profile/${author.id}`] : [],
+      authors: author ? [`${author.first_name} ${author.last_name}`] : undefined,
+      tags: article.tags as string[],
     },
     
-    // Twitter Card
     twitter: {
       card: 'summary_large_image',
       title: article.title,
-      description: plainContent,
-      images: [heroImage || `${baseUrl}/images/default-twitter-image.jpg`],
+      description: article.description || `${article.title}に関する制作物です。`,
+      images: heroImageUrl ? [heroImageUrl] : undefined,
     }
   };
 }
@@ -161,7 +165,7 @@ export default async function ArticlePage({ params, searchParams }: {
   // 記事一覧へのURL生成
   const articlesUrl = fromPage ? `/articles?page=${fromPage}` : '/articles';
 
-  // 記事データを取得（キャッシュを使用せず常に最新データを取得）
+  // 制作物データを取得（キャッシュを使用せず常に最新データを取得）
   const { data: article, error } = await supabase
     .from('articles')
     .select('*')
@@ -169,7 +173,7 @@ export default async function ArticlePage({ params, searchParams }: {
     .single();
 
   if (error || !article) {
-    console.error('記事の取得に失敗しました:', error);
+    console.error('制作物の取得に失敗しました:', error);
     notFound();
   }
 
@@ -221,44 +225,29 @@ export default async function ArticlePage({ params, searchParams }: {
   const avatarUrl = getAuthorAvatarUrl();
   const hasAvatar = !!avatarUrl;
 
-  // ヒーロー画像情報を取得
-  let heroImage = null;
+  // メイン画像情報を取得
+  let heroImageUrl = null;
   if (article.hero_image_id) {
-    console.log('記事のヒーロー画像ID:', article.hero_image_id);
+    console.log('制作物のメイン画像ID:', article.hero_image_id);
 
-    const { data: mediaData, error: mediaError } = await supabase
-      .from('article_media')
-      .select('*')
+    const { data: mediaData } = await supabase
+      .from('media')
+      .select('url')
       .eq('id', article.hero_image_id)
       .single();
 
-    if (mediaError) {
-      console.error('ヒーロー画像の取得に失敗しました:', mediaError);
-    } else if (mediaData) {
+    if (mediaData) {
       // ストレージからURLを生成
       console.log('ヒーロー画像データ:', mediaData);
       console.log('ストレージ情報:', {
-        bucket: mediaData.storage_bucket,
-        path: mediaData.storage_path
+        url: mediaData.url
       }); // ストレージ情報を確認
 
-      // ストレージパスを適切にエンコード
-      const encodedPath = mediaData.storage_path
-        .split('/')
-        .map((segment: string) => encodeURIComponent(segment))
-        .join('/');
-
-      const { data } = supabase.storage
-        .from(mediaData.storage_bucket)
-        .getPublicUrl(encodedPath);
-
-      console.log('生成されたURL:', data.publicUrl); // 生成されたURLを確認
-
-      heroImage = data.publicUrl;
+      heroImageUrl = mediaData.url;
     }
   }
 
-  // 記事に添付されたファイルを取得
+  // 制作物に添付されたファイルを取得
   const { data: downloadFiles, error: filesError } = await supabase
     .from('download_files')
     .select('*')
@@ -291,7 +280,7 @@ export default async function ArticlePage({ params, searchParams }: {
             "@type": "Article",
             "headline": article.title,
             "image": [
-              heroImage || `${process.env.NEXT_PUBLIC_BASE_URL || 'https://katamari.jp'}/images/default-og-image.jpg`
+              heroImageUrl || `${process.env.NEXT_PUBLIC_BASE_URL || 'https://katamari.jp'}/images/default-og-image.jpg`
             ],
             "datePublished": article.created_at,
             "dateModified": article.updated_at,
@@ -318,7 +307,7 @@ export default async function ArticlePage({ params, searchParams }: {
       />
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* 記事ヘッダー */}
+        {/* 制作物ヘッダー */}
         <header className="mb-8">
           <div className="flex items-center mb-4">
             <h1 className="text-3xl md:text-4xl font-bold">{article.title}</h1>
@@ -329,7 +318,7 @@ export default async function ArticlePage({ params, searchParams }: {
             )}
           </div>
 
-          {/* 著者情報と記事メタ情報 */}
+          {/* 著者情報と制作物メタ情報 */}
           <div className="flex flex-wrap items-center justify-between mb-4">
             <div className="flex items-center">
               <div className="w-10 h-10 rounded-full overflow-hidden mr-3 border border-gray-300 shadow-sm">
@@ -374,10 +363,10 @@ export default async function ArticlePage({ params, searchParams }: {
           </div>
 
           {/* ヒーロー画像 */}
-          {heroImage && (
+          {heroImageUrl && (
             <div className="aspect-w-16 aspect-h-9 mb-6">
               <Image
-                src={`${heroImage}?t=${Date.now()}`}
+                src={`${heroImageUrl}?t=${Date.now()}`}
                 alt={article.title}
                 width={1200}
                 height={675}
@@ -388,7 +377,7 @@ export default async function ArticlePage({ params, searchParams }: {
           )}
         </header>
 
-        {/* 記事本文 */}
+        {/* 制作物本文 */}
         <div
           className="prose prose-lg max-w-none mb-12"
           dangerouslySetInnerHTML={{ __html: article.content }}
@@ -396,7 +385,7 @@ export default async function ArticlePage({ params, searchParams }: {
 
         {/* ナビゲーションボタン */}
         <div className="mb-8">
-          <NavigationButtons backHref={articlesUrl} backLabel="記事一覧に戻る" />
+          <NavigationButtons backHref={articlesUrl} backLabel="制作物一覧に戻る" />
         </div>
 
         {/* ファイルダウンローダー */}

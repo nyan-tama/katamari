@@ -4,9 +4,9 @@ export default function Footer() {
             <div className="container mx-auto px-4">
                 <div className="flex flex-col md:flex-row justify-between items-center">
                     <div className="mb-4 md:mb-0">
-                        <h3 className="text-xl font-bold text-pink-500">カタワク</h3>
+                        <h3 className="text-xl font-bold text-pink-500">塊</h3>
                         <p className="text-gray-600 mt-1">
-                            かわいい・おもしろい3Dモデル共有プラットフォーム
+                            3Dプリンターデータ共有プラットフォームサイト
                         </p>
                     </div>
 
@@ -16,6 +16,9 @@ export default function Footer() {
                             <ul className="space-y-1">
                                 <li>
                                     <a href="/" className="text-gray-600 hover:text-pink-500">ホーム</a>
+                                </li>
+                                <li>
+                                    <a href="/articles" className="text-gray-600 hover:text-pink-500">制作物一覧</a>
                                 </li>
                                 <li>
                                     <a href="/login" className="text-gray-600 hover:text-pink-500">ログイン</a>
@@ -38,7 +41,7 @@ export default function Footer() {
 
                 <div className="border-t border-gray-200 mt-6 pt-6 text-center">
                     <p className="text-sm text-gray-500">
-                        © {new Date().getFullYear()} カタマリ - 3Dプリントで、共有する喜び
+                        © {new Date().getFullYear()} 塊 - 3Dプリントでつくる喜び
                     </p>
                 </div>
             </div>

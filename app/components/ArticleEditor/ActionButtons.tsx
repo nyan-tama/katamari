@@ -1,51 +1,46 @@
 'use client';
 
+import React, { FormEvent } from 'react';
+
 interface ActionButtonsProps {
-    onCancel: () => void;
-    onSaveDraft: () => void;
-    onPublish: () => void;
+    onDraftClick: (e: FormEvent) => void;
+    onPublishClick: (e: FormEvent) => void;
     isSubmitting: boolean;
-    articleStatus?: 'draft' | 'published';
+    isDraft?: boolean;
 }
 
 /**
- * 記事編集ページのアクションボタンコンポーネント
+ * 制作物編集画面の操作ボタンコンポーネント
  */
 export default function ActionButtons({
-    onCancel,
-    onSaveDraft,
-    onPublish,
+    onDraftClick,
+    onPublishClick,
     isSubmitting,
-    articleStatus = 'draft'
+    isDraft
 }: ActionButtonsProps) {
     return (
-        <div className="flex justify-between">
+        <div className="flex flex-wrap gap-4 justify-end">
             <button
                 type="button"
-                onClick={onCancel}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                onClick={onDraftClick}
+                disabled={isSubmitting}
+                className="px-6 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 
+                           transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="制作物を下書き保存します。後で編集を続けることができます。"
             >
-                キャンセル
+                {isDraft === false ? '下書きに戻す' : '下書き保存'}
             </button>
-
-            <div className="flex gap-4">
-                <button
-                    type="button"
-                    onClick={onSaveDraft}
-                    disabled={isSubmitting}
-                    className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
-                >
-                    下書き保存
-                </button>
-                <button
-                    type="button"
-                    onClick={onPublish}
-                    disabled={isSubmitting}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
-                >
-                    {articleStatus === 'published' ? '更新する' : '公開する'}
-                </button>
-            </div>
+            
+            <button
+                type="submit"
+                onClick={onPublishClick}
+                disabled={isSubmitting}
+                className="px-6 py-2 bg-pink-500 text-white rounded-md hover:bg-pink-600 
+                           transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="制作物を公開します。すべてのユーザーが閲覧できるようになります。"
+            >
+                {isSubmitting ? '保存中...' : isDraft === false ? '更新する' : '公開する'}
+            </button>
         </div>
     );
 } 

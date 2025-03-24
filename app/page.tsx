@@ -9,13 +9,13 @@ import type { Metadata } from 'next';
 
 // ホームページの静的メタデータ
 export const metadata: Metadata = {
-  title: '塊 | 3Dプリンターデータ共有サイト',
+  title: '塊 | 3Dプリンターデータ共有プラットフォームサイト',
   description: '3Dプリンターで作れるデータの共有サイト。初心者から上級者まで楽しめるプロジェクトが満載。あなたのデータを共有し、コミュニティとつながりましょう。',
-  keywords: ['3Dプリンター', 'データ', 'ダウンロード', 'モデル', '無料', '共有', 'コミュニティ', 'STL', 'obj'],
+  keywords: ['3Dプリンター', 'データ', 'ダウンロード', 'モデル', '無料', '共有', 'コミュニティ', 'STL', 'obj', '制作物'],
   
   openGraph: {
-    title: '塊 | 3Dプリンターデータ共有サイト',
-    description: '3Dプリンターで作れるデータの共有サイト。初心者から上級者まで楽しめるプロジェクトが満載。',
+    title: '塊 | 3Dプリンターデータ共有プラットフォームサイト',
+    description: '3Dプリンターで作れるデータの共有プラットフォームサイト。初心者から上級者まで楽しめるプロジェクトが満載。',
     url: process.env.NEXT_PUBLIC_BASE_URL || 'https://katamari.jp',
     siteName: '塊 | 3Dプリンターモデル共有サイト',
     locale: 'ja_JP',
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
         url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://katamari.jp'}/images/og-image.jpg`,
         width: 1200,
         height: 630,
-        alt: '塊 | 3Dプリンターデータ共有サイト',
+        alt: '塊 | 3Dプリンターデータ共有プラットフォームサイト',
       }
     ],
   },
@@ -90,7 +90,7 @@ export const revalidate = 0;
 export default async function Home() {
   const supabase = createServerComponentClient({ cookies });
 
-  // 最新20件の公開記事を取得
+  // 最新20件の公開制作物を取得
   const { data: latestArticles, error } = await supabase
     .from('articles')
     .select('*')
@@ -99,13 +99,13 @@ export default async function Home() {
     .limit(20);
 
   if (error) {
-    console.error("記事取得エラー:", error);
+    console.error("制作物取得エラー:", error);
   }
 
   // データに型を指定
   const typedArticles = latestArticles as Article[] || [];
 
-  // ヒーロー画像情報を取得
+  // メイン画像情報を取得
   if (typedArticles && typedArticles.length > 0) {
     const articleIds = typedArticles.filter(a => a.hero_image_id).map(a => a.hero_image_id);
 
@@ -127,7 +127,7 @@ export default async function Home() {
           [key: string]: unknown;
         }>);
 
-        // 記事データにヒーロー画像URLを追加
+        // 制作物データにメイン画像URLを追加
         typedArticles.forEach(article => {
           if (article.hero_image_id && mediaMap[article.hero_image_id]) {
             const media = mediaMap[article.hero_image_id];
@@ -146,7 +146,7 @@ export default async function Home() {
           }
         });
       } else if (mediaError) {
-        console.error('ヒーロー画像の取得に失敗しました:', mediaError);
+        console.error('メイン画像の取得に失敗しました:', mediaError);
       }
     }
   }
@@ -167,7 +167,7 @@ export default async function Home() {
   });
 
   console.log('著者情報:', authorsMap);
-  console.log('記事データ:', typedArticles);
+  console.log('制作物データ:', typedArticles);
 
   return (
     <>
@@ -179,20 +179,20 @@ export default async function Home() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebSite",
-            "name": "カタマリ | 3Dプリンターモデル共有サイト",
-            "url": process.env.NEXT_PUBLIC_BASE_URL || "https://katamari-3d.vercel.app",
+            "name": "塊 | 3Dプリンターデータ 共有プラットフォームサイト",
+            "url": process.env.NEXT_PUBLIC_BASE_URL || "https://katamari.jp",
             "potentialAction": {
               "@type": "SearchAction",
-              "target": `${process.env.NEXT_PUBLIC_BASE_URL || 'https://katamari-3d.vercel.app'}/articles?search={search_term_string}`,
+              "target": `${process.env.NEXT_PUBLIC_BASE_URL || 'https://katamari.jp'}/articles?search={search_term_string}`,
               "query-input": "required name=search_term_string"
             },
-            "description": "3Dプリンターで作れるモデルの共有サイト。初心者から上級者まで楽しめるプロジェクトが満載。",
+            "description": "3Dプリンターで作れるデータの共有サイト。初心者から上級者まで楽しめるプロジェクトが満載。",
             "publisher": {
               "@type": "Organization",
-              "name": "カタマリ",
+              "name": "塊",
               "logo": {
                 "@type": "ImageObject",
-                "url": `${process.env.NEXT_PUBLIC_BASE_URL || 'https://katamari-3d.vercel.app'}/logo.png`
+                "url": `${process.env.NEXT_PUBLIC_BASE_URL || 'https://katamari.jp'}/logo.png`
               }
             }
           })
@@ -208,7 +208,7 @@ export default async function Home() {
                 3Dプリント関連の知識・経験・制作物を共有しよう
               </h1>
               <p className="text-lg md:text-xl text-gray-600 mb-8">
-                「カタマリ」は、あなたの創作体験や知識を共有する<br className="hidden md:block" />
+                「塊」は、あなたの創作体験や知識を共有する<br className="hidden md:block" />
                 3Dプリントコミュニティプラットフォームです
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -216,7 +216,7 @@ export default async function Home() {
                   href="/articles"
                   className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-lg font-medium text-lg transition-colors"
                 >
-                  記事を探す
+                  制作物を探す
                 </Link>
                 <Link
                   href="/login"
@@ -228,10 +228,10 @@ export default async function Home() {
             </div>
           </section>
 
-          {/* 最新の記事セクション */}
+          {/* 最新の制作物セクション */}
           <section className="mb-16">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">新着記事</h2>
+              <h2 className="text-2xl font-bold text-gray-800">新着制作物</h2>
               <Link href="/articles" className="text-pink-500 hover:text-pink-600">
                 すべて見る →
               </Link>
@@ -310,7 +310,7 @@ export default async function Home() {
                 <div className="flex-1">
                   <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-blue-600 mb-3">✨ Bambu Labの3Dプリンターで作ろう ✨</h2>
                   <p className="text-gray-600 mb-6 text-lg">
-                    カタマリの記事で紹介されているモデルは、高品質な3Dプリンターで出力するとさらに美しく仕上がります。Bambu Labの製品なら、誰でも簡単に高精度な3D印刷が可能です♪
+                    カタマリの制作物で紹介されているモデルは、高品質な3Dプリンターで出力するとさらに美しく仕上がります。Bambu Labの製品なら、誰でも簡単に高精度な3D印刷が可能です♪
                   </p>
                   <a
                     href="https://jp.store.bambulab.com/"
