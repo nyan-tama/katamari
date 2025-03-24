@@ -5,6 +5,8 @@ import { ja } from 'date-fns/locale';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
+import Script from 'next/script';
+import type { Metadata, ResolvingMetadata } from 'next';
 import NavigationButtons from '@/app/components/NavigationButtons';
 import FileDownloader from '@/app/components/FileDownloader';
 
@@ -18,6 +20,113 @@ async function incrementViewCount(articleId: string) {
     .from('articles')
     .update({ view_count: supabase.rpc('increment', { field: 'view_count' }) })
     .eq('id', articleId);
+}
+
+// 記事データを取得する関数（メタデータ生成用に分離）
+async function getArticleData(slug: string) {
+  const supabase = createServerComponentClient({ cookies });
+  
+  // 記事データを取得
+  const { data: article, error } = await supabase
+    .from('articles')
+    .select('*')
+    .eq('slug', slug)
+    .single();
+
+  if (error || !article) {
+    console.error('記事の取得に失敗しました:', error);
+    return null;
+  }
+
+  // 著者情報を取得
+  const { data: author, error: authorError } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', article.author_id)
+    .single();
+
+  if (authorError) {
+    console.error('著者情報の取得に失敗しました:', authorError);
+  }
+
+  // ヒーロー画像のURLを取得
+  let heroImage = null;
+  if (article.hero_image_id) {
+    const { data: media, error: mediaError } = await supabase
+      .from('article_media')
+      .select('*')
+      .eq('id', article.hero_image_id)
+      .single();
+
+    if (!mediaError && media) {
+      const { data } = supabase.storage
+        .from(media.storage_bucket)
+        .getPublicUrl(media.storage_path);
+      
+      heroImage = data.publicUrl;
+    }
+  }
+
+  return { article, author, heroImage };
+}
+
+// 動的メタデータ生成関数
+export async function generateMetadata(
+  { params }: { params: { slug: string } },
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  // 記事データを取得
+  const data = await getArticleData(params.slug);
+  
+  if (!data || !data.article) {
+    return {
+      title: 'ページが見つかりません | 塊',
+      description: 'お探しの記事は見つかりませんでした。',
+    };
+  }
+  
+  const { article, author, heroImage } = data;
+  
+  // コンテンツからHTMLタグを除去してプレーンテキストを作成
+  const plainContent = article.content.replace(/<[^>]*>/g, '').substring(0, 160);
+  
+  // 親メタデータからサイト全体の設定を継承
+  const previousImages = (await parent).openGraph?.images || [];
+  const siteName = '塊 | 3Dプリンターデータ共有サイト';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://katamari.jp';
+  
+  return {
+    title: `${article.title} | 塊`,
+    description: plainContent,
+    keywords: ['3Dプリンター', 'データ', 'ダウンロード', 'モデル', '無料', article.title],
+    
+    // OGP (Open Graph Protocol) タグ
+    openGraph: {
+      title: article.title,
+      description: plainContent,
+      url: `${baseUrl}/articles/${article.slug}`,
+      siteName: siteName,
+      images: [
+        heroImage 
+          ? heroImage
+          : `${baseUrl}/images/default-og-image.jpg`,
+        ...previousImages,
+      ],
+      locale: 'ja_JP',
+      type: 'article',
+      publishedTime: article.created_at,
+      modifiedTime: article.updated_at,
+      authors: author ? [`${baseUrl}/profile/${author.id}`] : [],
+    },
+    
+    // Twitter Card
+    twitter: {
+      card: 'summary_large_image',
+      title: article.title,
+      description: plainContent,
+      images: [heroImage || `${baseUrl}/images/default-twitter-image.jpg`],
+    }
+  };
 }
 
 // Supabaseストレージからの公開URL取得
@@ -171,95 +280,133 @@ export default async function ArticlePage({ params, searchParams }: {
   const isDraft = article.status === 'draft';
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      {/* 記事ヘッダー */}
-      <header className="mb-8">
-        <div className="flex items-center mb-4">
-          <h1 className="text-3xl md:text-4xl font-bold">{article.title}</h1>
-          {isDraft && isAuthor && (
-            <span className="ml-3 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
-              非公開
-            </span>
-          )}
-        </div>
-
-        {/* 著者情報と記事メタ情報 */}
-        <div className="flex flex-wrap items-center justify-between mb-4">
-          <div className="flex items-center">
-            <div className="w-10 h-10 rounded-full overflow-hidden mr-3 border border-gray-300 shadow-sm">
-              {hasAvatar ? (
-                <Image
-                  src={avatarUrl}
-                  alt={author.name}
-                  width={40}
-                  height={40}
-                  className="w-full h-full object-cover"
-                  unoptimized={true}
-                />
-              ) : (
-                <div className="w-full h-full bg-gray-100 flex items-center justify-center text-sm text-gray-600 border border-gray-200">
-                  {author.name.charAt(0).toUpperCase()}
-                </div>
-              )}
-            </div>
-            <div>
-              <div className="font-medium">{author.name}</div>
-              <div className="text-sm text-gray-500">
-                {formatDistance(new Date(article.created_at), new Date(), {
-                  addSuffix: true,
-                  locale: ja,
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* 編集ボタン（著者のみ表示） */}
-          {isAuthor && (
-            <Link
-              href={`/articles/${article.slug}/edit`}
-              className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 inline-flex items-center"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              編集
-            </Link>
-          )}
-        </div>
-
-        {/* ヒーロー画像 */}
-        {heroImage && (
-          <div className="aspect-w-16 aspect-h-9 mb-6">
-            <Image
-              src={`${heroImage}?t=${Date.now()}`}
-              alt={article.title}
-              width={1200}
-              height={675}
-              className="w-full h-full object-cover rounded-lg"
-              unoptimized={true}
-            />
-          </div>
-        )}
-      </header>
-
-      {/* 記事本文 */}
-      <div
-        className="prose prose-lg max-w-none mb-12"
-        dangerouslySetInnerHTML={{ __html: article.content }}
+    <>
+      {/* 構造化データ（JSON-LD） */}
+      <Script
+        id="structured-data"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": article.title,
+            "image": [
+              heroImage || `${process.env.NEXT_PUBLIC_BASE_URL || 'https://katamari.jp'}/images/default-og-image.jpg`
+            ],
+            "datePublished": article.created_at,
+            "dateModified": article.updated_at,
+            "author": {
+              "@type": "Person",
+              "name": author?.name || "塊ユーザー",
+              "url": `${process.env.NEXT_PUBLIC_BASE_URL || 'https://katamari.jp'}/profile/${article.author_id}`
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "塊",
+              "logo": {
+                "@type": "ImageObject",
+                "url": `${process.env.NEXT_PUBLIC_BASE_URL || 'https://katamari.jp  '}/logo.png`
+              }
+            },
+            "description": article.content.replace(/<[^>]*>/g, '').substring(0, 160),
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": `${process.env.NEXT_PUBLIC_BASE_URL || 'https://katamari.jp'}/articles/${article.slug}`
+            }
+          })
+        }}
       />
 
-      {/* ナビゲーションボタン */}
-      <div className="mb-8">
-        <NavigationButtons backHref={articlesUrl} backLabel="記事一覧に戻る" />
-      </div>
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* 記事ヘッダー */}
+        <header className="mb-8">
+          <div className="flex items-center mb-4">
+            <h1 className="text-3xl md:text-4xl font-bold">{article.title}</h1>
+            {isDraft && isAuthor && (
+              <span className="ml-3 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                非公開
+              </span>
+            )}
+          </div>
 
-      {/* ファイルダウンローダー */}
-      {downloadFiles && downloadFiles.length > 0 && (
-        <div className="mt-8 border-t pt-8">
-          <h2 className="text-2xl font-bold mb-4">ダウンロード</h2>
-          <FileDownloader articleId={article.id} />
+          {/* 著者情報と記事メタ情報 */}
+          <div className="flex flex-wrap items-center justify-between mb-4">
+            <div className="flex items-center">
+              <div className="w-10 h-10 rounded-full overflow-hidden mr-3 border border-gray-300 shadow-sm">
+                {hasAvatar ? (
+                  <Image
+                    src={avatarUrl}
+                    alt={author.name}
+                    width={40}
+                    height={40}
+                    className="w-full h-full object-cover"
+                    unoptimized={true}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-100 flex items-center justify-center text-sm text-gray-600 border border-gray-200">
+                    {author.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+              <div>
+                <div className="font-medium">{author.name}</div>
+                <div className="text-sm text-gray-500">
+                  {formatDistance(new Date(article.created_at), new Date(), {
+                    addSuffix: true,
+                    locale: ja,
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* 編集ボタン（著者のみ表示） */}
+            {isAuthor && (
+              <Link
+                href={`/articles/${article.slug}/edit`}
+                className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 inline-flex items-center"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                編集
+              </Link>
+            )}
+          </div>
+
+          {/* ヒーロー画像 */}
+          {heroImage && (
+            <div className="aspect-w-16 aspect-h-9 mb-6">
+              <Image
+                src={`${heroImage}?t=${Date.now()}`}
+                alt={article.title}
+                width={1200}
+                height={675}
+                className="w-full h-full object-cover rounded-lg"
+                unoptimized={true}
+              />
+            </div>
+          )}
+        </header>
+
+        {/* 記事本文 */}
+        <div
+          className="prose prose-lg max-w-none mb-12"
+          dangerouslySetInnerHTML={{ __html: article.content }}
+        />
+
+        {/* ナビゲーションボタン */}
+        <div className="mb-8">
+          <NavigationButtons backHref={articlesUrl} backLabel="記事一覧に戻る" />
         </div>
-      )}
-    </div>
+
+        {/* ファイルダウンローダー */}
+        {downloadFiles && downloadFiles.length > 0 && (
+          <div className="mt-8 border-t pt-8">
+            <h2 className="text-2xl font-bold mb-4">ダウンロード</h2>
+            <FileDownloader articleId={article.id} />
+          </div>
+        )}
+      </div>
+    </>
   );
 } 

@@ -4,6 +4,29 @@ import { cookies } from 'next/headers';
 import { formatDistance } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import Image from 'next/image';
+import type { Metadata } from 'next';
+
+// 記事一覧ページの静的メタデータ
+export const metadata: Metadata = {
+  title: '記事一覧 | 塊',
+  description: '3Dプリンターデータに関するプロジェクトを探しましょう。初心者向けのチュートリアルから上級者向けのテクニックまで様々な記事があります。',
+  keywords: ['3Dプリンター', 'データ', 'ダウンロード', 'モデル', '無料', '記事一覧', 'チュートリアル'],
+  
+  openGraph: {
+    title: '記事一覧 | 塊',
+    description: '3Dプリンターデータに関するプロジェクトを探しましょう。初心者向けのチュートリアルから上級者向けのテクニックまで様々な記事があります。',
+    url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://katamari.jp'}/articles`,
+    siteName: '塊 | 3Dプリンターデータ共有サイト',
+    locale: 'ja_JP',
+    type: 'website',
+  },
+  
+  twitter: {
+    card: 'summary',
+    title: '記事一覧 | 塊',
+    description:'3Dプリンターデータに関するプロジェクトを探しましょう。',
+  }
+};
 
 // 型定義
 interface Article {
