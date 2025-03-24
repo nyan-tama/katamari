@@ -264,8 +264,10 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
                 const updatedArticle = await updateArticle(articleId, updateData);
                 console.log('記事更新成功:', updatedArticle);
 
-                // ファイル処理（新規アップロードまたは既存ファイル削除）
-                await uploadFiles(articleId, safeFiles);
+                // ファイル処理（新規アップロードと既存ファイル削除）
+                // 新しいファイルがある場合は既存ファイルを全て置き換える
+                const replaceExistingFiles = safeFiles.length > 0;
+                await uploadFiles(articleId, safeFiles, replaceExistingFiles);
 
                 // 成功したら記事詳細ページにリダイレクト
                 router.push(`/articles/${articleId}`);
@@ -282,22 +284,25 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
     };
 
     // ファイルアップロード関数
-    const uploadFiles = async (articleId: string, files: File[]) => {
+    const uploadFiles = async (articleId: string, files: File[], replaceExisting: boolean = false) => {
         // アップロード中フラグをセット
         setUploading(true);
 
         try {
             const supabase = createClientSupabase();
 
-            // 削除対象のファイルを処理
-            if (filesToDelete.length > 0) {
-                console.log('削除予定ファイルを削除します', filesToDelete);
+            // 既存ファイルをすべて削除する場合
+            if (replaceExisting && existingFiles.length > 0) {
+                console.log('既存のファイルをすべて削除します', existingFiles.length);
 
-                // 削除対象のファイルを抽出
-                const filesToDeleteObj = existingFiles.filter(file => filesToDelete.includes(file.id));
-
-                // 削除対象のストレージファイルを削除
-                for (const file of filesToDeleteObj) {
+                // すべての既存ファイルのIDを取得
+                const allFileIds = existingFiles.map(file => file.id);
+                
+                // すべての既存ファイルを削除対象に設定
+                setFilesToDelete(allFileIds);
+                
+                // ストレージから全ての既存ファイルを削除
+                for (const file of existingFiles) {
                     try {
                         // ストレージからファイルを削除
                         const { error: storageError } = await supabase.storage
@@ -312,21 +317,57 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
                     }
                 }
 
-                // データベースから削除対象のファイルを削除
+                // データベースから全ての既存ファイルを削除
                 const { error: dbError } = await supabase
                     .from('download_files')
                     .delete()
-                    .in('id', filesToDelete);
+                    .in('id', allFileIds);
 
                 if (dbError) {
-                    console.error('削除対象ファイル情報の削除に失敗:', dbError);
+                    console.error('既存ファイル情報の削除に失敗:', dbError);
+                }
+                
+                // 既存ファイルリストをクリア
+                setExistingFiles([]);
+            } else {
+                // 削除対象のファイルを処理
+                if (filesToDelete.length > 0) {
+                    console.log('削除予定ファイルを削除します', filesToDelete);
+
+                    // 削除対象のファイルを抽出
+                    const filesToDeleteObj = existingFiles.filter(file => filesToDelete.includes(file.id));
+
+                    // 削除対象のストレージファイルを削除
+                    for (const file of filesToDeleteObj) {
+                        try {
+                            // ストレージからファイルを削除
+                            const { error: storageError } = await supabase.storage
+                                .from(file.storage_bucket)
+                                .remove([file.storage_path]);
+
+                            if (storageError) {
+                                console.error(`ファイル「${file.original_name}」のストレージからの削除に失敗:`, storageError);
+                            }
+                        } catch (err) {
+                            console.error(`ファイル「${file.original_name}」の削除中にエラー:`, err);
+                        }
+                    }
+
+                    // データベースから削除対象のファイルを削除
+                    const { error: dbError } = await supabase
+                        .from('download_files')
+                        .delete()
+                        .in('id', filesToDelete);
+
+                    if (dbError) {
+                        console.error('削除対象ファイル情報の削除に失敗:', dbError);
+                    }
                 }
             }
 
             // 既存の残りのファイルを取得（削除対象外）
             const remainingExistingFiles = existingFiles.filter(file => !filesToDelete.includes(file.id));
 
-            // 以前の既存ファイル削除処理は削除（削除対象のみを処理するようになったため）
             // 新しいファイルがない場合は終了
             if (files.length === 0) {
                 // 削除のみで追加がない場合はexistingFilesを更新

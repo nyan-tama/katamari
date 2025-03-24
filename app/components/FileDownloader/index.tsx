@@ -59,6 +59,32 @@ export default function FileDownloader({ articleId }: FileDownloaderProps) {
         fetchFileData();
     }, [articleId]);
 
+    // 第二階層までのフォルダを自動的に展開する
+    useEffect(() => {
+        if (files.length === 0 || loading) return;
+
+        // 展開するフォルダのパスを収集
+        const foldersToExpand: Record<string, boolean> = {};
+        
+        // パスごとに処理
+        files.forEach(file => {
+            const pathSegments = file.path ? file.path.split('/').filter(Boolean) : [];
+            
+            // 第一階層と第二階層のフォルダを展開
+            let currentPath = '';
+            
+            // 最大2階層までを処理（パスセグメントの3番目まで）
+            pathSegments.slice(0, 2).forEach(segment => {
+                currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+                foldersToExpand[currentPath] = true;
+            });
+        });
+        
+        // 展開するフォルダを設定
+        setExpandedFolders(foldersToExpand);
+        console.log('自動的に展開するフォルダ:', Object.keys(foldersToExpand));
+    }, [files, loading]);
+
     // フォルダ構造を構築
     const folderStructure = useMemo(() => {
         const rootFolder: FolderNode = {
@@ -85,6 +111,9 @@ export default function FileDownloader({ articleId }: FileDownloaderProps) {
 
             pathSegments.forEach((segment, index) => {
                 currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+                
+                // フォルダの階層レベルを計算（0=ルート、1=第一階層、2=第二階層）
+                const level = index + 1;
 
                 if (!currentFolder.subfolders[segment]) {
                     currentFolder.subfolders[segment] = {
@@ -92,7 +121,8 @@ export default function FileDownloader({ articleId }: FileDownloaderProps) {
                         path: `${currentPath}/`,
                         files: [],
                         subfolders: {},
-                        isExpanded: !!expandedFolders[currentPath]
+                        // 第二階層まで自動的に展開、または明示的に指定されたフォルダ
+                        isExpanded: level <= 2 || !!expandedFolders[currentPath]
                     };
                 }
 
