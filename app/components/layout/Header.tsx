@@ -39,18 +39,18 @@ export default function Header() {
     };
 
     return (
-        <header className="bg-white shadow-md">
-            <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-                <Link href="/" className="text-xl font-bold text-gray-900 flex items-center">
+        <header className="bg-card shadow-sm border-b border-border sticky top-0 z-10">
+            <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+                <Link href="/" className="text-xl font-bold text-primary flex items-center">
                     カタマリ
                 </Link>
 
                 <nav className="flex items-center gap-6">
-                    <Link href="/" className="text-gray-700 hover:text-pink-500">
+                    <Link href="/" className="text-card-foreground hover:text-primary transition-colors">
                         ホーム
                     </Link>
 
-                    <Link href="/articles" className="text-gray-700 hover:text-pink-500">
+                    <Link href="/articles" className="text-card-foreground hover:text-primary transition-colors">
                         作れるもの一覧
                     </Link>
 
@@ -58,15 +58,15 @@ export default function Header() {
                         <>
                             {user ? (
                                 <>
-                                    <Link href="/articles/new" className="text-gray-700 hover:text-pink-500">
+                                    <Link href="/articles/new" className="text-card-foreground hover:text-primary transition-colors">
                                         作れるもの登録
                                     </Link>
-                                    <Link href="/profile" className="text-gray-700 hover:text-pink-500">
+                                    <Link href="/profile" className="text-card-foreground hover:text-primary transition-colors">
                                         マイページ
                                     </Link>
                                     <button
                                         onClick={handleLogout}
-                                        className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-md"
+                                        className="bg-secondary hover:bg-opacity-90 text-white px-4 py-2 rounded-md transition-colors"
                                     >
                                         ログアウト
                                     </button>
@@ -74,7 +74,7 @@ export default function Header() {
                             ) : (
                                 <Link
                                     href="/login"
-                                    className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-md"
+                                    className="bg-primary hover:bg-primary-light text-white px-4 py-2 rounded-md transition-colors"
                                 >
                                     ログイン
                                 </Link>

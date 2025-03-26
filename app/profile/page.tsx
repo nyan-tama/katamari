@@ -457,7 +457,7 @@ export default function ProfilePage() {
                         <div className="flex-shrink-0">
                             {isEditing ? (
                                 // 編集モード: 画像変更可能
-                                <div className="w-32 h-32 relative rounded-full overflow-hidden border-2 border-gray-200">
+                                <div className="w-32 h-32 relative rounded-full overflow-hidden bg-gray-light">
                                     {avatarPreview ? (
                                         <img
                                             src={avatarPreview}
@@ -465,7 +465,7 @@ export default function ProfilePage() {
                                             className="w-full h-full object-cover"
                                         />
                                     ) : (
-                                        <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400">
+                                        <div className="w-full h-full bg-gray-light flex items-center justify-center text-gray-400">
                                             <span className="text-3xl">👤</span>
                                         </div>
                                     )}
@@ -486,7 +486,7 @@ export default function ProfilePage() {
                                 </div>
                             ) : (
                                 // 非編集モード: 画像表示のみ
-                                <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-gray-200">
+                                <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-light">
                                     {profile?.avatar_storage_path ? (
                                         <Image
                                             src={getPublicUrl('avatars', profile.avatar_storage_path)}
@@ -494,7 +494,7 @@ export default function ProfilePage() {
                                             width={128}
                                             height={128}
                                             className="object-cover w-full h-full"
-                                            unoptimized={true}
+                                            quality={80}
                                         />
                                     ) : profile?.default_avatar_url && profile.default_avatar_url.startsWith('http') ? (
                                         <Image
@@ -503,10 +503,10 @@ export default function ProfilePage() {
                                             width={128}
                                             height={128}
                                             className="object-cover w-full h-full"
-                                            unoptimized={true}
+                                            quality={80}
                                         />
                                     ) : (
-                                        <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400">
+                                        <div className="w-full h-full bg-gray-light flex items-center justify-center text-gray-400">
                                             <span className="text-3xl">👤</span>
                                         </div>
                                     )}
