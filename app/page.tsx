@@ -142,8 +142,7 @@ export default async function Home() {
             3Dプリンターのデータで面白い、かわいい、役に立つを共有しよう
           </h1>
           <p className="text-lg md:text-xl text-gray-dark mb-8">
-            「カタマリ」は、あなたの経験や知識を共有する<br className="hidden md:block" />
-            3Dプリンターデータプラットフォームです
+            「カタマリ」は、3Dプリンターで印刷できるデータや作り方を共有するプラットフォームです
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link

@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { formatDistance } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import Image from 'next/image';
+import { PlusIcon } from '@heroicons/react/24/outline';
 
 // 型定義
 interface Article {
@@ -119,9 +120,10 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
         <h1 className="text-3xl font-bold">作れるもの一覧</h1>
         <Link
           href="/articles/new"
-          className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+          className="inline-flex items-center gap-1 px-4 py-2 bg-secondary text-white rounded-full hover:bg-opacity-90 transition-colors"
         >
-          新規作れるもの登録
+          <PlusIcon className="h-4 w-4" />
+          新規データの登録
         </Link>
       </div>
 
