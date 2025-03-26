@@ -15,6 +15,7 @@ interface Article {
   author_id: string;
   view_count: number;
   download_count: number;
+  slug: string;
 }
 
 interface Author {
@@ -144,7 +145,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {articles.map((article) => (
-            <Link key={article.id} href={`/articles/${article.id}?from_page=${currentPage}`} className="block">
+            <Link key={article.id} href={`/articles/${article.slug}`} className="block">
               <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
                 {/* ヒーロー画像 */}
                 <div className="aspect-w-16 aspect-h-9">

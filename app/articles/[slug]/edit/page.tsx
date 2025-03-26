@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getArticleById, updateArticle, UpdateArticleInput } from '@/lib/api/articles';
+import { getArticleBySlug, updateArticle, UpdateArticleInput } from '@/lib/api/articles';
 import { createClientSupabase } from '@/lib/supabase-client';
 import CustomFileSelector from '@/app/components/CustomFileSelector';
 import { uploadFiles, filterSystemFiles, uploadHeroImage } from '@/app/components/ArticleEditor/fileUtils';
@@ -22,9 +22,10 @@ interface DownloadFile {
     created_at: string;
 }
 
-export default function EditArticlePage({ params }: { params: { id: string } }) {
+export default function EditArticlePage({ params }: { params: { slug: string } }) {
     const router = useRouter();
-    const articleId = params.id;
+    const articleSlug = params.slug;
+    const [articleId, setArticleId] = useState('');
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [heroImage, setHeroImage] = useState<File | null>(null);
@@ -56,11 +57,12 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
                 setUserId(user.id);
 
                 // 記事データを取得
-                const article = await getArticleById(articleId);
+                const article = await getArticleBySlug(articleSlug);
+                setArticleId(article.id);
 
                 // 記事が存在し、ログインユーザーが著者でない場合はリダイレクト
                 if (article.author_id !== user.id) {
-                    router.push(`/articles/${articleId}`);
+                    router.push(`/articles/${articleSlug}`);
                     return;
                 }
 
@@ -73,7 +75,7 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
                 const { data: downloadFiles, error: filesError } = await supabase
                     .from('download_files')
                     .select('*')
-                    .eq('article_id', articleId);
+                    .eq('article_id', article.id);
 
                 if (filesError) {
                     console.error('ファイル取得エラー:', filesError);
@@ -107,7 +109,7 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
         };
 
         fetchData();
-    }, [articleId, router]);
+    }, [articleSlug, router]);
 
     // 記事の更新
     const handleUpdate = async (saveStatus: 'draft' | 'published' = 'draft') => {
@@ -182,12 +184,12 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
                 const updatedArticle = await updateArticle(articleId, updateData);
                 console.log('記事更新成功:', updatedArticle);
 
-                // 新しいファイルがあれば既存ファイルを全て置き換える
-                const replaceExistingFiles = safeFiles.length > 0;
-                await uploadFiles(articleId, safeFiles, replaceExistingFiles, existingFiles);
+                // 新しいファイルがあるか、削除対象のファイルがある場合に既存ファイルを処理
+                const replaceExistingFiles = safeFiles.length > 0 || filesToDelete.length > 0;
+                await uploadFiles(articleId, safeFiles, replaceExistingFiles, existingFiles, filesToDelete);
 
                 // 成功したら記事詳細ページにリダイレクト
-                router.push(`/articles/${articleId}`);
+                router.push(`/articles/${articleSlug}`);
             } catch (err) {
                 console.error('記事更新エラー:', err);
                 setError('記事の更新に失敗しました');
@@ -212,7 +214,7 @@ export default function EditArticlePage({ params }: { params: { id: string } }) 
 
     // キャンセルのハンドラ
     const handleCancel = () => {
-        router.push(`/articles/${articleId}`);
+        router.push(`/articles/${articleSlug}`);
     };
 
     // ヒーロー画像選択のハンドラ

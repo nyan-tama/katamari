@@ -40,23 +40,16 @@ const getPublicUrl = (bucket: string, path: string | null): string => {
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function ArticlePage({ params, searchParams }: {
-  params: { id: string },
-  searchParams: { from_page?: string }
+export default async function ArticlePage({ params }: {
+  params: { slug: string }
 }) {
   const supabase = createServerComponentClient({ cookies });
-
-  // 遷移元ページ情報を取得
-  const fromPage = searchParams.from_page || '';
-
-  // 記事一覧へのURL生成
-  const articlesUrl = fromPage ? `/articles?page=${fromPage}` : '/articles';
 
   // 記事データを取得（キャッシュを使用せず常に最新データを取得）
   const { data: article, error } = await supabase
     .from('articles')
     .select('*')
-    .eq('id', params.id)
+    .eq('slug', params.slug)
     .single();
 
   if (error || !article) {
@@ -153,7 +146,7 @@ export default async function ArticlePage({ params, searchParams }: {
   const { data: downloadFiles, error: filesError } = await supabase
     .from('download_files')
     .select('*')
-    .eq('article_id', params.id);
+    .eq('article_id', article.id);
 
   // デバッグ用にログを追加
   console.log('ダウンロードファイル:', JSON.stringify(downloadFiles));
@@ -165,7 +158,7 @@ export default async function ArticlePage({ params, searchParams }: {
   }
 
   // ビューカウントを増やす（実際のプロダクションでは重複カウントを防ぐ仕組みが必要）
-  await incrementViewCount(params.id);
+  await incrementViewCount(article.id);
 
   // 非公開状態かどうか
   const isDraft = article.status === 'draft';
@@ -216,7 +209,7 @@ export default async function ArticlePage({ params, searchParams }: {
           {/* 編集ボタン（著者のみ表示） */}
           {isAuthor && (
             <Link
-              href={`/articles/${article.id}/edit`}
+              href={`/articles/${article.slug}/edit`}
               className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 inline-flex items-center"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -250,7 +243,7 @@ export default async function ArticlePage({ params, searchParams }: {
 
       {/* 添付ファイル一覧 - FileDownloaderコンポーネントに置き換え */}
       <FileDownloader
-        articleId={params.id}
+        articleId={article.id}
       />
 
       {/* ナビゲーション */}

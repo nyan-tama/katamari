@@ -7,38 +7,68 @@ import { createClientSupabase } from '@/lib/supabase-client';
 /**
  * 記事用のファイルをアップロードする関数
  */
-export const uploadFiles = async (articleId: string, files: File[], replaceExisting: boolean = false, existingFiles: any[] = []) => {
+export const uploadFiles = async (articleId: string, files: File[], replaceExisting: boolean = false, existingFiles: any[] = [], filesToDelete: string[] = []) => {
     try {
         const supabase = createClientSupabase();
 
         // 既存ファイルをすべて削除する場合
-        if (replaceExisting && existingFiles.length > 0) {
-            console.log('既存のファイルをすべて削除します', existingFiles.length);
+        if (replaceExisting) {
+            if (filesToDelete.length > 0) {
+                console.log('指定された既存ファイルを削除します', filesToDelete.length);
 
-            // すべての既存ファイルのIDを取得
-            const allFileIds = existingFiles.map(file => file.id);
-            
-            // 既存ファイルをすべて削除
-            const { error: deleteError } = await supabase
-                .from('download_files')
-                .delete()
-                .in('id', allFileIds);
+                // 指定されたIDのファイルを削除
+                const { error: deleteError } = await supabase
+                    .from('download_files')
+                    .delete()
+                    .in('id', filesToDelete);
 
-            if (deleteError) {
-                console.error('既存ファイルの削除エラー:', deleteError);
-            } else {
-                console.log(`${allFileIds.length}件のファイルを削除しました`);
-            }
-            
-            // ストレージの対象ファイルも削除
-            for (const file of existingFiles) {
-                if (file.storage_path) {
-                    const { error: storageError } = await supabase.storage
-                        .from(file.storage_bucket || 'downloads')
-                        .remove([file.storage_path]);
-                        
-                    if (storageError) {
-                        console.error(`ストレージファイル「${file.storage_path}」の削除エラー:`, storageError);
+                if (deleteError) {
+                    console.error('指定ファイルの削除エラー:', deleteError);
+                } else {
+                    console.log(`${filesToDelete.length}件の指定ファイルを削除しました`);
+                }
+
+                // 削除対象のファイルのストレージも削除
+                const filesToRemove = existingFiles.filter(file => filesToDelete.includes(file.id));
+                for (const file of filesToRemove) {
+                    if (file.storage_path) {
+                        const { error: storageError } = await supabase.storage
+                            .from(file.storage_bucket || 'downloads')
+                            .remove([file.storage_path]);
+
+                        if (storageError) {
+                            console.error(`ストレージファイル「${file.storage_path}」の削除エラー:`, storageError);
+                        }
+                    }
+                }
+            } else if (existingFiles.length > 0) {
+                console.log('既存のファイルをすべて削除します', existingFiles.length);
+
+                // すべての既存ファイルのIDを取得
+                const allFileIds = existingFiles.map(file => file.id);
+
+                // 既存ファイルをすべて削除
+                const { error: deleteError } = await supabase
+                    .from('download_files')
+                    .delete()
+                    .in('id', allFileIds);
+
+                if (deleteError) {
+                    console.error('既存ファイルの削除エラー:', deleteError);
+                } else {
+                    console.log(`${allFileIds.length}件のファイルを削除しました`);
+                }
+
+                // ストレージの対象ファイルも削除
+                for (const file of existingFiles) {
+                    if (file.storage_path) {
+                        const { error: storageError } = await supabase.storage
+                            .from(file.storage_bucket || 'downloads')
+                            .remove([file.storage_path]);
+
+                        if (storageError) {
+                            console.error(`ストレージファイル「${file.storage_path}」の削除エラー:`, storageError);
+                        }
                     }
                 }
             }
@@ -52,13 +82,13 @@ export const uploadFiles = async (articleId: string, files: File[], replaceExist
 
         // 新規ファイルをアップロード
         console.log(`新規ファイル ${files.length}個をアップロードします`);
-        
+
         // ファイルごとの並列アップロード処理
         const uploadPromises = files.map(async (file) => {
             try {
                 // 相対パスを取得（webkitRelativePathがある場合）
                 const originalPath = (file as any).webkitRelativePath || '';
-                
+
                 // フォルダパスを構築（ファイル名を除く）
                 let folderPath = '';
                 if (originalPath && originalPath.includes('/')) {
@@ -118,11 +148,11 @@ export const uploadFiles = async (articleId: string, files: File[], replaceExist
 
         // すべてのアップロード処理を待機
         const results = await Promise.all(uploadPromises);
-        
+
         // 正常に処理できたファイルのみフィルタリング
         const successfulUploads = results.filter(Boolean);
         console.log(`${successfulUploads.length}/${files.length}件のファイルアップロードに成功しました`);
-        
+
         return successfulUploads;
     } catch (err) {
         console.error('ファイルアップロード処理全体でのエラー:', err);
@@ -221,7 +251,7 @@ export const uploadHeroImage = async (articleId: string, heroImage: File) => {
         if (mediaData && mediaData.length > 0) {
             return mediaData[0].id;
         }
-        
+
         return null;
     } catch (err) {
         console.error('ヒーロー画像アップロードエラー:', err);
