@@ -11,6 +11,16 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        primary: "var(--primary)",
+        "primary-light": "var(--primary-light)",
+        secondary: "var(--secondary)",
+        accent: "var(--accent)",
+        "gray-light": "var(--gray-light)",
+        "gray": "var(--gray)",
+        "gray-dark": "var(--gray-dark)",
+        border: "var(--border)",
+        card: "var(--card)",
+        "card-foreground": "var(--card-foreground)",
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',

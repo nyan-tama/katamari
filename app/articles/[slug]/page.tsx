@@ -338,7 +338,7 @@ export default async function ArticlePage({ params }: {
         {/* 著者情報と記事メタ情報 */}
         <div className="flex flex-wrap items-center justify-between mb-4">
           <div className="flex items-center">
-            <div className="w-10 h-10 rounded-full overflow-hidden mr-3 border border-gray-300 shadow-sm">
+            <div className="w-10 h-10 rounded-full overflow-hidden mr-3 bg-gray-light">
               {hasAvatar ? (
                 <Image
                   src={avatarUrl}
@@ -349,7 +349,7 @@ export default async function ArticlePage({ params }: {
                   quality={75}
                 />
               ) : (
-                <div className="w-full h-full bg-gray-100 flex items-center justify-center text-sm text-gray-600 border border-gray-200">
+                <div className="w-full h-full bg-gray-light flex items-center justify-center text-sm text-gray-600">
                   {author.name.charAt(0).toUpperCase()}
                 </div>
               )}

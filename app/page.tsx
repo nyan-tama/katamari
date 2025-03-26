@@ -136,19 +136,19 @@ export default async function Home() {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* ヒーローセクション */}
-      <section className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl p-8 md:p-12 mb-12">
+      <section className="bg-gradient-to-r from-gray-light to-card rounded-xl p-8 md:p-12 mb-12 shadow-sm border border-border">
         <div className="max-w-3xl mx-auto text-center">
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 mb-4">
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-dark mb-4">
             3Dプリンターのデータで面白い、かわいい、役に立つを共有しよう
           </h1>
-          <p className="text-lg md:text-xl text-gray-600 mb-8">
+          <p className="text-lg md:text-xl text-gray-dark mb-8">
             「カタマリ」は、あなたの経験や知識を共有する<br className="hidden md:block" />
             3Dプリンターデータプラットフォームです
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/articles"
-              className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-lg font-medium text-lg transition-colors"
+              className="bg-primary hover:bg-primary-light text-white px-6 py-3 rounded-lg font-medium text-lg transition-colors"
             >
               作れるものを探す
             </Link>
@@ -159,17 +159,17 @@ export default async function Home() {
       {/* 最新の記事セクション */}
       <section className="mb-16">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">新着 作れるもの</h2>
-          <Link href="/articles" className="text-pink-500 hover:text-pink-600">
+          <h2 className="text-2xl font-bold text-foreground">新着 作れるもの</h2>
+          <Link href="/articles" className="text-primary hover:text-primary-light transition-colors">
             すべて見る →
           </Link>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {typedArticles && typedArticles.map((article) => (
+          {typedArticles && typedArticles.map((article, index) => (
             <Link key={article.id} href={`/articles/${article.slug}`} className="group">
-              <div className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
-                <div className="w-full h-48 bg-gray-100 relative overflow-hidden">
+              <div className="bg-card rounded-lg overflow-hidden shadow-sm border border-border hover:shadow-md transition-all">
+                <div className="w-full h-48 bg-gray-light relative overflow-hidden">
                   {article.hero_image_url ? (
                     <Image
                       src={article.hero_image_url}
@@ -177,7 +177,7 @@ export default async function Home() {
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                       className="object-cover"
-                      priority={article.index < 4}
+                      priority={index < 4}
                       quality={85}
                     />
                   ) : (
@@ -187,7 +187,7 @@ export default async function Home() {
                   )}
                 </div>
                 <div className="p-4">
-                  <h3 className="font-medium text-gray-800 mb-1 group-hover:text-pink-500 transition-colors truncate">
+                  <h3 className="font-medium text-card-foreground mb-1 group-hover:text-primary transition-colors truncate">
                     {article.title}
                   </h3>
                   <div className="flex items-center">
@@ -200,7 +200,7 @@ export default async function Home() {
                           width={32}
                           height={32}
                           className="w-full h-full object-cover"
-                          unoptimized={true}
+                          quality={75}
                         />
                       ) : authorsMap[article.author_id]?.default_avatar_url ? (
                         // OAuth経由のアバター（GoogleやGitHubなど）
@@ -210,19 +210,19 @@ export default async function Home() {
                           width={32}
                           height={32}
                           className="w-full h-full object-cover"
-                          unoptimized={true}
+                          quality={75}
                         />
                       ) : (
                         // デフォルトアバター（イニシャル）
-                        <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-600">
+                        <div className="w-full h-full bg-gray-light flex items-center justify-center text-gray-600">
                           {authorsMap[article.author_id]?.name?.charAt(0).toUpperCase() || 'U'}
                         </div>
                       )}
                     </div>
-                    <span className="text-sm text-gray-700">{authorsMap[article.author_id]?.name || '不明なユーザー'}</span>
+                    <span className="text-sm text-gray-dark">{authorsMap[article.author_id]?.name || '不明なユーザー'}</span>
                   </div>
                   <div className="flex justify-between mt-1">
-                    <p className="text-xs text-gray-500">{formatDate(article.created_at)}</p>
+                    <p className="text-xs text-gray-dark">{formatDate(article.created_at)}</p>
                   </div>
                 </div>
               </div>
@@ -233,30 +233,30 @@ export default async function Home() {
 
       {/* bambooサイトへのリンクセクション */}
       <section className="mb-16">
-        <div className="bg-gradient-to-r from-green-50 via-blue-50 to-pink-50 p-8 rounded-xl shadow-md border-2 border-pink-300">
+        <div className="bg-card p-8 rounded-xl shadow-sm border border-border">
           <div className="flex flex-col md:flex-row items-center gap-6">
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-blue-600 mb-3">✨ Bambu Labの3Dプリンターで作ろう ✨</h2>
-              <p className="text-gray-600 mb-6 text-lg">
+              <h2 className="text-2xl font-bold text-accent mb-3">✨ Bambu Labの3Dプリンターで作ろう ✨</h2>
+              <p className="text-card-foreground mb-6 text-lg">
                 カタマリで紹介されている作れるものは、高品質な3Dプリンターで出力するとさらに美しく仕上がります。Bambu Labの製品なら、誰でも簡単に高精度な3D印刷が可能です♪
               </p>
               <a
                 href="https://jp.store.bambulab.com/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white px-6 py-3 rounded-lg font-medium inline-block transition-colors shadow-md transform hover:scale-105 transition-transform duration-300"
+                className="bg-secondary hover:bg-opacity-90 text-white px-6 py-3 rounded-lg font-medium inline-block transition-all shadow-md hover:shadow-lg"
               >
                 🛒 Bambu Lab公式ストアを見る
               </a>
             </div>
             <div className="flex items-center justify-center">
-              <div className="w-44 h-44 rounded-full overflow-hidden relative bg-white border-4 border-green-200 shadow-lg transform hover:rotate-3 transition-transform duration-300" style={{ boxShadow: '0 0 20px rgba(110, 231, 183, 0.5)' }}>
+              <div className="w-44 h-44 rounded-full overflow-hidden relative bg-white border-2 border-primary transform hover:rotate-3 transition-transform duration-300">
                 <Image
                   src="https://jp.store.bambulab.com/cdn/shop/products/A1-2_1400x.png?v=1703150110"
                   alt="Bambu Lab 3Dプリンター"
                   fill
                   className="object-contain p-2"
-                  unoptimized={true}
+                  quality={85}
                 />
               </div>
             </div>

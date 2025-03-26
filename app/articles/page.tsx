@@ -164,7 +164,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
 
                   {/* 著者情報 */}
                   <div className="flex items-center mb-3">
-                    <div className="w-8 h-8 rounded-full overflow-hidden mr-2 border border-gray-300 shadow-sm">
+                    <div className="w-8 h-8 rounded-full overflow-hidden mr-2 bg-gray-light">
                       {authorsMap[article.author_id]?.avatar_storage_path ? (
                         // Supabaseにアップロードされたカスタムアバター
                         <Image
@@ -173,7 +173,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
                           width={32}
                           height={32}
                           className="w-full h-full object-cover"
-                          unoptimized={true}
+                          quality={75}
                         />
                       ) : authorsMap[article.author_id]?.default_avatar_url ? (
                         // OAuth経由のアバター（GoogleやGitHubなど）
@@ -183,11 +183,11 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
                           width={32}
                           height={32}
                           className="w-full h-full object-cover"
-                          unoptimized={true}
+                          quality={75}
                         />
                       ) : (
                         // デフォルトアバター（イニシャル）
-                        <div className="w-full h-full bg-gray-100 flex items-center justify-center text-xs text-gray-600 border border-gray-200">
+                        <div className="w-full h-full bg-gray-light flex items-center justify-center text-xs text-gray-600">
                           {authorsMap[article.author_id]?.name?.charAt(0).toUpperCase() || 'U'}
                         </div>
                       )}
