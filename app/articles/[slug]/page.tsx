@@ -105,10 +105,10 @@ export default async function ArticlePage({ params }: {
   const avatarUrl = getAuthorAvatarUrl();
   const hasAvatar = !!avatarUrl;
 
-  // ヒーロー画像情報を取得
+  // メイン画像情報を取得
   let heroImage = null;
   if (article.hero_image_id) {
-    console.log('記事のヒーロー画像ID:', article.hero_image_id);
+    console.log('記事のメイン画像ID:', article.hero_image_id);
 
     const { data: mediaData, error: mediaError } = await supabase
       .from('article_media')
@@ -117,10 +117,10 @@ export default async function ArticlePage({ params }: {
       .single();
 
     if (mediaError) {
-      console.error('ヒーロー画像の取得に失敗しました:', mediaError);
+      console.error('メイン画像の取得に失敗しました:', mediaError);
     } else if (mediaData) {
       // ストレージからURLを生成
-      console.log('ヒーロー画像データ:', mediaData);
+      console.log('メイン画像データ:', mediaData);
       console.log('ストレージ情報:', {
         bucket: mediaData.storage_bucket,
         path: mediaData.storage_path
@@ -220,7 +220,7 @@ export default async function ArticlePage({ params }: {
           )}
         </div>
 
-        {/* ヒーロー画像 */}
+        {/* メイン画像 */}
         {heroImage && (
           <div className="aspect-w-16 aspect-h-9 mb-6">
             <Image

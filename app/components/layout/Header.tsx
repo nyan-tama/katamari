@@ -42,7 +42,6 @@ export default function Header() {
         <header className="bg-white shadow-md">
             <div className="container mx-auto px-4 py-3 flex justify-between items-center">
                 <Link href="/" className="text-xl font-bold text-gray-900 flex items-center">
-                    <span className="mr-2">🧩</span>
                     カタマリ
                 </Link>
 
@@ -50,7 +49,7 @@ export default function Header() {
                     <Link href="/" className="text-gray-700 hover:text-pink-500">
                         ホーム
                     </Link>
-                    
+
                     <Link href="/articles" className="text-gray-700 hover:text-pink-500">
                         記事一覧
                     </Link>

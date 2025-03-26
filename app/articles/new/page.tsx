@@ -23,21 +23,21 @@ export default function NewArticlePage() {
   const [filesError, setFilesError] = useState<string | null>(null);
   const [filesErrorType, setFilesErrorType] = useState<'error' | 'warning'>('error');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  
+
   // カスタムフックを使用
   const { userId, loading: authLoading } = useAuth();
-  const { 
-    heroImage, 
-    heroImagePreview, 
-    handleHeroImageChange 
+  const {
+    heroImage,
+    heroImagePreview,
+    handleHeroImageChange
   } = useHeroImage({ setError });
-  
-  const { 
+
+  const {
     uploadFiles,
     uploading
-  } = useFileUpload({ 
-    setFilesError, 
-    setFilesErrorType 
+  } = useFileUpload({
+    setFilesError,
+    setFilesErrorType
   });
 
   // 記事の保存
@@ -58,10 +58,10 @@ export default function NewArticlePage() {
         setIsSubmitting(false);
         return;
       }
-      
+
       // 選択されたファイルを検証
       const { safeFiles, systemFolderFiles, detectedSystemFolder } = filterSystemFiles(selectedFiles);
-      
+
       // システムフォルダが見つかった場合は警告を表示
       if (systemFolderFiles.length > 0) {
         setFilesError(`"${detectedSystemFolder}" を含むパスのファイル(${systemFolderFiles.length}件)はシステム関連フォルダのためアップロードできませんので除外しました`);
@@ -70,7 +70,7 @@ export default function NewArticlePage() {
 
       const supabase = createClientSupabase();
 
-      // ヒーロー画像のアップロード（もし選択されていれば）
+      // メイン画像のアップロード（もし選択されていれば）
       let heroImageUrl = null;
       if (heroImage) {
         try {
@@ -141,10 +141,10 @@ export default function NewArticlePage() {
 
         const article = await createArticle(userId, articleData);
 
-        // 記事作成に成功したら、ヒーロー画像の情報をarticle_mediaテーブルに保存
+        // 記事作成に成功したら、メイン画像の情報をarticle_mediaテーブルに保存
         if (heroImageUrl) {
           try {
-            // article_mediaテーブルにヒーロー画像の情報を追加
+            // article_mediaテーブルにメイン画像の情報を追加
             const { data: mediaData, error: mediaError } = await supabase.from('article_media').insert({
               article_id: article.id,
               media_type: 'image',
@@ -154,21 +154,21 @@ export default function NewArticlePage() {
             }).select();
 
             if (mediaError) {
-              console.error('ヒーロー画像情報の保存に失敗しました:', mediaError);
+              console.error('メイン画像情報の保存に失敗しました:', mediaError);
             } else if (mediaData && mediaData.length > 0) {
-              // ヒーロー画像IDを記事に関連付け
+              // メイン画像IDを記事に関連付け
               const { error: updateError } = await supabase
                 .from('articles')
                 .update({ hero_image_id: mediaData[0].id })
                 .eq('id', article.id);
 
               if (updateError) {
-                console.error('記事のヒーロー画像ID更新に失敗しました:', updateError);
+                console.error('記事のメイン画像ID更新に失敗しました:', updateError);
               }
             }
           } catch (err) {
-            console.error('ヒーロー画像情報の保存に失敗しました:', err);
-            // ヒーロー画像情報の保存失敗は致命的エラーではないので続行
+            console.error('メイン画像情報の保存に失敗しました:', err);
+            // メイン画像情報の保存失敗は致命的エラーではないので続行
           }
         }
 
@@ -213,10 +213,10 @@ export default function NewArticlePage() {
       <h1 className="text-3xl font-bold mb-6">新しい記事を作成</h1>
 
       <ErrorDisplay error={error} />
-      
-      <ErrorDisplay 
-        error={filesError} 
-        type={filesErrorType} 
+
+      <ErrorDisplay
+        error={filesError}
+        type={filesErrorType}
       />
 
       <div className="mb-6">
@@ -233,7 +233,7 @@ export default function NewArticlePage() {
         />
       </div>
 
-      <HeroImageUploader 
+      <HeroImageUploader
         onHeroImageChange={handleHeroImageChange}
         heroImagePreview={heroImagePreview}
       />

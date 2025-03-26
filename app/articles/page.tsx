@@ -60,7 +60,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
     return <div>記事の読み込み中にエラーが発生しました。</div>;
   }
 
-  // ヒーロー画像の情報を取得
+  // メイン画像の情報を取得
   const articleIds = articles.filter(a => a.hero_image_id).map(a => a.hero_image_id);
 
   if (articleIds.length > 0) {
@@ -69,38 +69,28 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
       .select('*')
       .in('id', articleIds);
 
-    if (!mediaError && mediaData) {
+    if (mediaError) {
+      console.error('メイン画像の取得に失敗しました:', mediaError);
+    } else if (mediaData) {
       // メディア情報をマッピング
       const mediaMap = mediaData.reduce((acc, media) => {
         acc[media.id] = media;
         return acc;
-      }, {} as Record<string, {
-        id: string;
-        storage_bucket: string;
-        storage_path: string;
-        [key: string]: unknown;
-      }>);
+      }, {} as Record<string, any>);
 
-      // 記事データにヒーロー画像URLを追加
+      // 記事データにメイン画像URLを追加
       articles.forEach(article => {
         if (article.hero_image_id && mediaMap[article.hero_image_id]) {
           const media = mediaMap[article.hero_image_id];
 
-          // ストレージパスを適切にエンコード
-          const encodedPath = media.storage_path
-            .split('/')
-            .map((segment: string) => encodeURIComponent(segment))
-            .join('/');
-
+          // Supabase Storageから公開URLを取得
           const { data } = supabase.storage
             .from(media.storage_bucket)
-            .getPublicUrl(encodedPath);
+            .getPublicUrl(media.storage_path);
 
           article.hero_image_url = data.publicUrl;
         }
       });
-    } else if (mediaError) {
-      console.error('ヒーロー画像の取得に失敗しました:', mediaError);
     }
   }
 
@@ -147,20 +137,19 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
           {articles.map((article) => (
             <Link key={article.id} href={`/articles/${article.slug}`} className="block">
               <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                {/* ヒーロー画像 */}
-                <div className="aspect-w-16 aspect-h-9">
+                {/* メイン画像 */}
+                <div className="w-full h-48 relative bg-gray-100 rounded-t-lg overflow-hidden">
                   {article.hero_image_url ? (
                     <Image
                       src={article.hero_image_url}
                       alt={article.title}
-                      width={600}
-                      height={338}
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
                       unoptimized={true}
                     />
                   ) : (
-                    <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500">
-                      画像なし
+                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                      <span className="text-4xl">📄</span>
                     </div>
                   )}
                 </div>

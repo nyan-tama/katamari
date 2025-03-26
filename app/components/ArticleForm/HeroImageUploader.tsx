@@ -9,7 +9,7 @@ export function HeroImageUploader({ onHeroImageChange, heroImagePreview }: HeroI
   return (
     <div className="mb-6">
       <label htmlFor="heroImage" className="block text-sm font-medium text-gray-700 mb-1">
-        ヒーロー画像（オプション）
+        メイン画像（オプション）
       </label>
       <input
         type="file"
@@ -22,7 +22,7 @@ export function HeroImageUploader({ onHeroImageChange, heroImagePreview }: HeroI
         <div className="mt-2">
           <img
             src={heroImagePreview}
-            alt="ヒーロー画像プレビュー"
+            alt="メイン画像プレビュー"
             className="w-full max-h-64 object-cover rounded-md"
           />
         </div>
