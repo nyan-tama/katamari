@@ -150,7 +150,7 @@ export default async function Home() {
               href="/articles"
               className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-lg font-medium text-lg transition-colors"
             >
-              記事を探す
+              作れるものを探す
             </Link>
           </div>
         </div>
@@ -159,7 +159,7 @@ export default async function Home() {
       {/* 最新の記事セクション */}
       <section className="mb-16">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">新着記事</h2>
+          <h2 className="text-2xl font-bold text-gray-800">新着 作れるもの</h2>
           <Link href="/articles" className="text-pink-500 hover:text-pink-600">
             すべて見る →
           </Link>
@@ -175,10 +175,10 @@ export default async function Home() {
                       src={article.hero_image_url}
                       alt={article.title}
                       fill
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                       className="object-cover"
-                      priority={true}
-                      unoptimized={true}
+                      priority={article.index < 4}
+                      quality={85}
                     />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-gray-400">
@@ -238,7 +238,7 @@ export default async function Home() {
             <div className="flex-1">
               <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-blue-600 mb-3">✨ Bambu Labの3Dプリンターで作ろう ✨</h2>
               <p className="text-gray-600 mb-6 text-lg">
-                カタマリの記事で紹介されているモデルは、高品質な3Dプリンターで出力するとさらに美しく仕上がります。Bambu Labの製品なら、誰でも簡単に高精度な3D印刷が可能です♪
+                カタマリで紹介されている作れるものは、高品質な3Dプリンターで出力するとさらに美しく仕上がります。Bambu Labの製品なら、誰でも簡単に高精度な3D印刷が可能です♪
               </p>
               <a
                 href="https://jp.store.bambulab.com/"

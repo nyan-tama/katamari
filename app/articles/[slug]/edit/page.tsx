@@ -238,7 +238,7 @@ export default function EditArticlePage({ params }: { params: { slug: string } }
 
     return (
         <div className="container mx-auto px-4 py-8 max-w-4xl">
-            <h1 className="text-3xl font-bold mb-6">記事を編集</h1>
+            <h1 className="text-3xl font-bold mb-6">編集</h1>
 
             {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
@@ -256,7 +256,7 @@ export default function EditArticlePage({ params }: { params: { slug: string } }
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     className="w-full p-3 border border-gray-300 rounded-md"
-                    placeholder="記事のタイトルを入力..."
+                    placeholder="タイトルを入力..."
                 />
             </div>
 
@@ -269,12 +269,12 @@ export default function EditArticlePage({ params }: { params: { slug: string } }
 
             <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                    記事内容
+                    内容
                 </label>
                 <textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    placeholder="記事の内容を入力してください..."
+                    placeholder="内容を入力してください..."
                     className="w-full p-3 border border-gray-300 rounded-md min-h-[300px]"
                     rows={10}
                 />
@@ -283,7 +283,7 @@ export default function EditArticlePage({ params }: { params: { slug: string } }
             {/* ダウンロードファイル */}
             <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ダウンロードファイル
+                    ダウンロード用ファイル
                 </label>
 
                 {/* ファイル選択UI - 既存ファイルを初期表示 */}

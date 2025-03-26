@@ -563,12 +563,12 @@ export default function ProfilePage() {
                 <div className="border-b border-gray-200 mb-8">
                     <nav className="-mb-px flex">
                         <button className="text-pink-600 border-pink-500 py-4 px-1 border-b-2 font-medium mr-8">
-                            記事
+                            自分が登録したもの
                         </button>
                     </nav>
                 </div>
 
-                {/* 記事一覧 */}
+                {/* 自分が登録したもの一覧 */}
                 {userArticles.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {userArticles.map((article) => (
@@ -607,7 +607,7 @@ export default function ProfilePage() {
                         ))}
                     </div>
                 ) : (
-                    <p className="text-center text-gray-500">記事がありません</p>
+                    <p className="text-center text-gray-500">登録したものがありません</p>
                 )}
             </div>
         </div>

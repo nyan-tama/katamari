@@ -1,31 +1,55 @@
-import type { Metadata } from "next";
-import localFont from "next/font/local";
-import "./globals.css";
-import Header from "./components/layout/Header";
+import './globals.css';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import Footer from "./components/layout/Footer";
+import Header from "./components/layout/Header";
 import Script from 'next/script';
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
-});
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: "カタマリ - かわいい・おもしろい・役に立つ！3Dモデル共有プラットフォーム",
-  description: "「3Dプリントで、共有する喜び」をコンセプトに、かわいい・おもしろい・役立つ3Dモデルを共有できる日本発のプラットフォーム。SNSで映えるユニークな3Dデータが見つかります。",
-};
+  title: {
+    template: '%s | カタマリ - 3Dプリンターデータプラットフォーム',
+    default: 'カタマリ - 3Dプリンターで作れるものを共有するプラットフォーム',
+  },
+  description: '3Dプリンターで作れるものを共有するプラットフォーム「カタマリ」。面白い、かわいい、役に立つ3Dデータを探したり共有したりできます。',
+  keywords: ['3Dプリンター', '3Dプリント', '3Dモデル', '作れるもの', 'データ', 'ダウンロード', '3dプリンター 作れるもの'],
+  authors: [{ name: 'カタマリ運営チーム' }],
+  creator: 'カタマリ',
+  publisher: 'カタマリ',
+  openGraph: {
+    type: 'website',
+    locale: 'ja_JP',
+    url: 'https://katamari.jp',
+    siteName: 'カタマリ',
+    title: 'カタマリ - 3Dプリンターで作れるものを共有するプラットフォーム',
+    description: '3Dプリンターで作れるものを共有するプラットフォーム「カタマリ」。面白い、かわいい、役に立つ3Dデータを探したり共有したりできます。',
+    images: [
+      {
+        url: '/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'カタマリ - 3Dプリンターデータプラットフォーム',
+      }
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'カタマリ - 3Dプリンターで作れるものを共有するプラットフォーム',
+    description: '3Dプリンターで作れるものを共有するプラットフォーム「カタマリ」。面白い、かわいい、役に立つ3Dデータを探したり共有したりできます。',
+    images: ['/og-image.jpg'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  }
+}
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="ja" data-google-analytics-opt-out={process.env.NODE_ENV === 'development' ? 'true' : undefined} suppressHydrationWarning={true}>
       <head>
@@ -45,14 +69,14 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}
-      >
-        <Header />
-        <main className="flex-grow">
-          {children}
-        </main>
-        <Footer />
+      <body className={inter.className}>
+        <div className="flex flex-col min-h-screen">
+          <Header />
+          <main className="flex-grow">
+            {children}
+          </main>
+          <Footer />
+        </div>
       </body>
     </html>
   );

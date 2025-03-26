@@ -18,7 +18,7 @@ export default function Footer() {
                                     <a href="/" className="text-gray-600 hover:text-pink-500">ホーム</a>
                                 </li>
                                 <li>
-                                    <a href="/articles" className="text-gray-600 hover:text-pink-500">記事一覧</a>
+                                    <a href="/articles" className="text-gray-600 hover:text-pink-500">作れるもの一覧</a>
                                 </li>
                                 <li>
                                     <a href="/login" className="text-gray-600 hover:text-pink-500">ログイン</a>

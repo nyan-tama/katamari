@@ -210,7 +210,7 @@ export default function NewArticlePage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-6">新しい記事を作成</h1>
+      <h1 className="text-3xl font-bold mb-6">新規登録</h1>
 
       <ErrorDisplay error={error} />
 
@@ -224,12 +224,11 @@ export default function NewArticlePage() {
           タイトル
         </label>
         <input
-          type="text"
           id="title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-          placeholder="記事のタイトルを入力してください"
+          placeholder="タイトルを入力してください"
         />
       </div>
 
@@ -240,12 +239,12 @@ export default function NewArticlePage() {
 
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          記事内容
+          内容
         </label>
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="記事の内容を入力してください..."
+          placeholder="内容を入力してください..."
           className="w-full p-3 border border-gray-300 rounded-md min-h-[300px]"
           rows={10}
         />
@@ -253,7 +252,7 @@ export default function NewArticlePage() {
 
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          ダウンロードファイル
+          ダウンロード用ファイル
         </label>
         <CustomFileSelector
           onFilesSelected={(files) => setSelectedFiles(files)}
