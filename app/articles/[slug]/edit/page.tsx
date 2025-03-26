@@ -184,9 +184,9 @@ export default function EditArticlePage({ params }: { params: { slug: string } }
                 const updatedArticle = await updateArticle(articleId, updateData);
                 console.log('記事更新成功:', updatedArticle);
 
-                // 新しいファイルがあれば既存ファイルを全て置き換える
-                const replaceExistingFiles = safeFiles.length > 0;
-                await uploadFiles(articleId, safeFiles, replaceExistingFiles, existingFiles);
+                // 新しいファイルがあるか、削除対象のファイルがある場合に既存ファイルを処理
+                const replaceExistingFiles = safeFiles.length > 0 || filesToDelete.length > 0;
+                await uploadFiles(articleId, safeFiles, replaceExistingFiles, existingFiles, filesToDelete);
 
                 // 成功したら記事詳細ページにリダイレクト
                 router.push(`/articles/${articleSlug}`);
