@@ -10,10 +10,10 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: {
     template: '%s | カタマリ - 3Dプリンターデータプラットフォーム',
-    default: 'カタマリ - 3Dプリンターデータで面白い、かわいい、役に立つを共有',
+    default: 'カタマリ - 3Dプリンターで作れるものを共有するプラットフォーム',
   },
-  description: '3Dプリンターデータで面白い、かわいい、役に立つを共有するプラットフォーム「カタマリ」。あなたの作品やデータを共有しましょう。',
-  keywords: ['3Dプリンター', '3Dプリント', '3Dモデル', '作品', 'データ', 'ダウンロード'],
+  description: '3Dプリンターで作れるものを共有するプラットフォーム「カタマリ」。面白い、かわいい、役に立つ3Dデータを探したり共有したりできます。',
+  keywords: ['3Dプリンター', '3Dプリント', '3Dモデル', '作れるもの', 'データ', 'ダウンロード', '3dプリンター 作れるもの'],
   authors: [{ name: 'カタマリ運営チーム' }],
   creator: 'カタマリ',
   publisher: 'カタマリ',
@@ -22,8 +22,8 @@ export const metadata: Metadata = {
     locale: 'ja_JP',
     url: 'https://katamari.jp',
     siteName: 'カタマリ',
-    title: 'カタマリ - 3Dプリンターデータで面白い、かわいい、役に立つを共有',
-    description: '3Dプリンターデータで面白い、かわいい、役に立つを共有するプラットフォーム「カタマリ」。あなたの作品やデータを共有しましょう。',
+    title: 'カタマリ - 3Dプリンターで作れるものを共有するプラットフォーム',
+    description: '3Dプリンターで作れるものを共有するプラットフォーム「カタマリ」。面白い、かわいい、役に立つ3Dデータを探したり共有したりできます。',
     images: [
       {
         url: '/og-image.jpg',
@@ -35,8 +35,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'カタマリ - 3Dプリンターデータプラットフォーム',
-    description: '3Dプリンターデータで面白い、かわいい、役に立つを共有するプラットフォーム',
+    title: 'カタマリ - 3Dプリンターで作れるものを共有するプラットフォーム',
+    description: '3Dプリンターで作れるものを共有するプラットフォーム「カタマリ」。面白い、かわいい、役に立つ3Dデータを探したり共有したりできます。',
     images: ['/og-image.jpg'],
   },
   robots: {
