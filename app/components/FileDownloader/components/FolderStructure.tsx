@@ -80,11 +80,17 @@ const FolderStructure = ({
         <div className="space-y-2">
             {/* フォルダヘッダー（ルートフォルダ以外で表示） */}
             {folder.path && (
-                <div className="flex items-center gap-2 bg-secondary/5 hover:bg-secondary/10 rounded-md px-2 py-1.5 transition-colors group">
+                <div
+                    className="flex items-center gap-2 bg-yellow-50/80 hover:bg-yellow-100/80 rounded-md px-2 py-1.5 transition-colors group cursor-pointer"
+                    onClick={() => onToggleFolder(folder.path)}
+                >
                     <button
-                        onClick={() => onToggleFolder(folder.path)}
-                        className="p-1 hover:bg-secondary/20 rounded-md transition-colors"
+                        className="p-1 hover:bg-yellow-200/50 rounded-md transition-colors"
                         aria-label={isExpanded ? 'フォルダを閉じる' : 'フォルダを開く'}
+                        onClick={(e) => {
+                            e.stopPropagation(); // イベント伝播を防止
+                            onToggleFolder(folder.path);
+                        }}
                     >
                         {isExpanded
                             ? <ChevronDownIcon className="h-4 w-4 text-gray-500" />
@@ -104,11 +110,11 @@ const FolderStructure = ({
                     {!isRootLevelFolder && (
                         <button
                             onClick={(e) => {
-                                e.stopPropagation();
+                                e.stopPropagation(); // イベント伝播を防止
                                 onDownloadFolder(folder.path);
                             }}
                             disabled={!!downloadingFolder}
-                            className="ml-2 p-1 text-gray-500 hover:text-gray-700 hover:bg-secondary/20 rounded-md transition-colors disabled:opacity-50"
+                            className="ml-2 p-1 text-gray-500 hover:text-gray-700 hover:bg-yellow-200/50 rounded-md transition-colors disabled:opacity-50"
                             title="フォルダをZIPでダウンロード"
                         >
                             {downloadingFolder === folder.path ? (
