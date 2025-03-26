@@ -7,7 +7,62 @@ import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import NavigationButtons from '@/app/components/NavigationButtons';
 import FileDownloader from '@/app/components/FileDownloader';
+import ShareButtons from '@/app/components/ShareButtons';
 import type { Metadata } from 'next';
+import Script from 'next/script';
+
+// 構造化データ（JSON-LD）コンポーネント
+function StructuredData({
+  title,
+  description,
+  imageUrl,
+  authorName,
+  datePublished,
+  dateModified,
+  articleUrl
+}: {
+  title: string;
+  description: string;
+  imageUrl?: string;
+  authorName?: string;
+  datePublished: string;
+  dateModified: string;
+  articleUrl: string;
+}) {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: title,
+    description: description,
+    image: imageUrl || 'https://katamari.jp/og-image.jpg',
+    author: {
+      '@type': 'Person',
+      name: authorName || 'カタマリ投稿者',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'カタマリ',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://katamari.jp/logo.png',
+      },
+    },
+    datePublished,
+    dateModified,
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': articleUrl,
+    },
+  };
+
+  return (
+    <Script
+      id="structured-data"
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+  );
+}
 
 // ビューカウント更新用のサーバーアクションを定義
 async function incrementViewCount(articleId: string) {
@@ -51,13 +106,13 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   if (error || !article) {
     return {
       title: 'ページが見つかりません',
-      description: '指定された記事が見つかりませんでした。',
+      description: '指定された作品が見つかりませんでした。',
     };
   }
 
   // 記事の内容からHTMLタグを除去してプレーンテキスト化し、最初の100文字を説明文として使用
   const plainText = article.content ? article.content.replace(/<[^>]*>/g, '') : '';
-  const description = plainText.length > 100 ? plainText.slice(0, 100) + '...' : plainText;
+  const description = plainText.length > 160 ? plainText.slice(0, 160) + '...' : plainText;
 
   // 著者情報を取得
   const { data: author } = await supabase
@@ -84,13 +139,26 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     }
   }
 
+  // 最適なタイトルを構築（記事タイトル + 3Dプリンターで作れるもの）
+  const optimizedTitle = `${article.title} | 3Dプリンターで作れるもの`;
+
+  // 最適な説明文を構築
+  const optimizedDescription = description || `3Dプリンターで作れる「${article.title}」の詳細情報、ダウンロードデータ、作り方を紹介します。`;
+
+  // キーワードを設定（一般的な3Dプリンターキーワード + 記事タイトル）
+  const keywords = [
+    '3Dプリンター', '3Dプリント', '作れるもの', article.title,
+    '3Dプリンターデータ', 'ダウンロード', '3Dモデル'
+  ];
+
   return {
-    title: article.title,
-    description: description || '3Dプリンターデータの記事',
+    title: optimizedTitle,
+    description: optimizedDescription,
+    keywords: keywords,
     openGraph: {
       type: 'article',
-      title: article.title,
-      description: description || '3Dプリンターデータの記事',
+      title: optimizedTitle,
+      description: optimizedDescription,
       url: `https://katamari.jp/articles/${article.slug}`,
       images: imageUrl
         ? [
@@ -98,18 +166,19 @@ export async function generateMetadata({ params }: { params: { slug: string } })
             url: imageUrl,
             width: 1200,
             height: 630,
-            alt: article.title,
+            alt: `3Dプリンターで作れる${article.title}`,
           },
         ]
         : ['/og-image.jpg'],
       publishedTime: article.published_at || article.created_at,
       modifiedTime: article.updated_at,
       authors: author ? [author.name] : undefined,
+      tags: keywords,
     },
     twitter: {
       card: 'summary_large_image',
-      title: article.title,
-      description: description || '3Dプリンターデータの記事',
+      title: optimizedTitle,
+      description: optimizedDescription,
       images: imageUrl ? [imageUrl] : ['/og-image.jpg'],
     },
   };
@@ -244,6 +313,17 @@ export default async function ArticlePage({ params }: {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
+      {/* 構造化データの追加 */}
+      <StructuredData
+        title={article.title}
+        description={article.content?.replace(/<[^>]*>/g, '').slice(0, 160) || ''}
+        imageUrl={heroImage || undefined}
+        authorName={author?.name}
+        datePublished={article.published_at || article.created_at}
+        dateModified={article.updated_at}
+        articleUrl={`https://katamari.jp/articles/${article.slug}`}
+      />
+
       {/* 記事ヘッダー */}
       <header className="mb-8">
         <div className="flex items-center mb-4">
@@ -262,11 +342,11 @@ export default async function ArticlePage({ params }: {
               {hasAvatar ? (
                 <Image
                   src={avatarUrl}
-                  alt={author.name}
+                  alt={`${author.name}のプロフィール画像`}
                   width={40}
                   height={40}
                   className="w-full h-full object-cover"
-                  unoptimized={true}
+                  quality={75}
                 />
               ) : (
                 <div className="w-full h-full bg-gray-100 flex items-center justify-center text-sm text-gray-600 border border-gray-200">
@@ -304,26 +384,41 @@ export default async function ArticlePage({ params }: {
           <div className="aspect-w-16 aspect-h-9 mb-6">
             <Image
               src={`${heroImage}?t=${Date.now()}`}
-              alt={article.title}
+              alt={`${article.title}の画像`}
               width={1200}
               height={675}
               className="w-full h-full object-cover rounded-lg"
-              unoptimized={true}
+              priority={true}
+              quality={90}
             />
           </div>
         )}
       </header>
 
       {/* 記事本文 */}
-      <div
-        className="prose prose-lg max-w-none mb-12"
-        dangerouslySetInnerHTML={{ __html: article.content }}
-      />
+      <article>
+        <div
+          className="prose prose-lg max-w-none mb-12"
+          dangerouslySetInnerHTML={{ __html: article.content }}
+        />
+      </article>
 
-      {/* 添付ファイル一覧 - FileDownloaderコンポーネントに置き換え */}
-      <FileDownloader
-        articleId={article.id}
-      />
+      {/* SNS共有ボタン */}
+      <div className="border-t border-b border-gray-200 my-8">
+        <ShareButtons
+          title={article.title}
+          url={`/articles/${article.slug}`}
+          description={article.content?.replace(/<[^>]*>/g, '').slice(0, 100) || ''}
+        />
+      </div>
+
+      {/* 添付ファイル一覧 */}
+      <section className="mb-8">
+        <h2 className="text-2xl font-bold mb-4">ダウンロードファイル</h2>
+        <FileDownloader
+          articleId={article.id}
+        />
+      </section>
 
       {/* ナビゲーション */}
       <div className="flex justify-between mt-12 pt-6 border-t border-gray-200">

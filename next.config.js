@@ -19,7 +19,6 @@ const nextConfig = {
                 hostname: '**.supabase.co',
             },
         ],
-        unoptimized: true,
     },
 };
 

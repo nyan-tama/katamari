@@ -159,7 +159,7 @@ export default async function Home() {
       {/* 最新の記事セクション */}
       <section className="mb-16">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">新着作れるもの</h2>
+          <h2 className="text-2xl font-bold text-gray-800">新着 作れるもの</h2>
           <Link href="/articles" className="text-pink-500 hover:text-pink-600">
             すべて見る →
           </Link>
@@ -175,10 +175,10 @@ export default async function Home() {
                       src={article.hero_image_url}
                       alt={article.title}
                       fill
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                       className="object-cover"
-                      priority={true}
-                      unoptimized={true}
+                      priority={article.index < 4}
+                      quality={85}
                     />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-gray-400">
