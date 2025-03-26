@@ -6,6 +6,8 @@ import { createClientSupabase, getPublicUrl } from '@/lib/supabase-client';
 import { User } from '@supabase/supabase-js';
 import Link from 'next/link';
 import Image from 'next/image'
+import { formatDistanceToNow } from 'date-fns';
+import { ja } from 'date-fns/locale';
 
 // 記事型定義
 interface Article {
@@ -572,10 +574,10 @@ export default function ProfilePage() {
                 {userArticles.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {userArticles.map((article) => (
-                            <div key={article.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                            <div key={article.id} className="bg-card rounded-lg overflow-hidden shadow-sm border border-border hover:shadow-md transition-all">
                                 {/* サムネイル画像部分をリンクにする */}
-                                <Link href={`/articles/${article.slug}`} className="block">
-                                    <div className="aspect-video bg-gray-100 relative w-full" style={{ paddingBottom: '56.25%', height: 0, overflow: 'hidden' }}>
+                                <Link href={`/articles/${article.slug}`} className="block group">
+                                    <div className="w-full h-48 bg-gray-light relative overflow-hidden">
                                         {article.hero_image_url ? (
                                             <img
                                                 src={article.hero_image_url}
@@ -583,8 +585,8 @@ export default function ProfilePage() {
                                                 className="absolute inset-0 w-full h-full object-cover"
                                             />
                                         ) : (
-                                            <div className="absolute inset-0 flex items-center justify-center h-full text-gray-400">
-                                                <span className="text-4xl">📄</span>
+                                            <div className="absolute inset-0 flex items-center justify-center text-gray-400 bg-gray-light">
+                                                <span className="text-4xl">📦</span>
                                             </div>
                                         )}
                                         {/* 公開状態の表示を右上に配置 */}
@@ -596,12 +598,16 @@ export default function ProfilePage() {
                                     </div>
                                 </Link>
                                 <div className="p-4">
-                                    <h3 className="text-lg font-semibold mb-2">
-                                        <Link href={`/articles/${article.slug}`}>
+                                    <h3 className="font-medium text-card-foreground mb-1 group-hover:text-primary transition-colors">
+                                        <Link href={`/articles/${article.slug}`} className="group-hover:text-primary">
                                             {article.title}
                                         </Link>
                                     </h3>
-                                    {/* 他のコンテンツ */}
+                                    <div className="flex justify-between mt-1">
+                                        <p className="text-xs text-gray-dark">
+                                            {formatDistanceToNow(new Date(article.created_at), { addSuffix: true, locale: ja })}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         ))}

@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { formatDistance } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import Image from 'next/image';
+import { PlusIcon } from '@heroicons/react/24/outline';
 
 // 型定義
 interface Article {
@@ -119,9 +120,10 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
         <h1 className="text-3xl font-bold">作れるもの一覧</h1>
         <Link
           href="/articles/new"
-          className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+          className="inline-flex items-center gap-1 px-4 py-2 bg-secondary text-white rounded-full hover:bg-opacity-90 transition-colors"
         >
-          新規作れるもの登録
+          <PlusIcon className="h-4 w-4" />
+          新規データの登録
         </Link>
       </div>
 
@@ -135,10 +137,10 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {articles.map((article) => (
-            <Link key={article.id} href={`/articles/${article.slug}`} className="block">
-              <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+            <Link key={article.id} href={`/articles/${article.slug}`} className="group">
+              <div className="bg-card rounded-lg overflow-hidden shadow-sm border border-border hover:shadow-md transition-all">
                 {/* メイン画像 */}
-                <div className="w-full h-48 relative bg-gray-100 rounded-t-lg overflow-hidden">
+                <div className="w-full h-48 bg-gray-light relative overflow-hidden">
                   {article.hero_image_url ? (
                     <Image
                       src={article.hero_image_url}
@@ -150,21 +152,21 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
                       quality={80}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400">
-                      <span className="text-4xl">📄</span>
+                    <div className="absolute inset-0 flex items-center justify-center text-gray-400 bg-gray-light">
+                      <span className="text-4xl">📦</span>
                     </div>
                   )}
                 </div>
 
                 {/* 記事情報 */}
                 <div className="p-4">
-                  <h2 className="text-xl font-semibold mb-2 line-clamp-2 hover:text-indigo-600">
+                  <h3 className="font-medium text-card-foreground mb-1 group-hover:text-primary transition-colors truncate">
                     {article.title}
-                  </h2>
+                  </h3>
 
                   {/* 著者情報 */}
-                  <div className="flex items-center mb-3">
-                    <div className="w-8 h-8 rounded-full overflow-hidden mr-2 bg-gray-light">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 rounded-full overflow-hidden mr-2">
                       {authorsMap[article.author_id]?.avatar_storage_path ? (
                         // Supabaseにアップロードされたカスタムアバター
                         <Image
@@ -187,23 +189,20 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
                         />
                       ) : (
                         // デフォルトアバター（イニシャル）
-                        <div className="w-full h-full bg-gray-light flex items-center justify-center text-xs text-gray-600">
+                        <div className="w-full h-full bg-gray-light flex items-center justify-center text-gray-600">
                           {authorsMap[article.author_id]?.name?.charAt(0).toUpperCase() || 'U'}
                         </div>
                       )}
                     </div>
-                    <span className="text-sm text-gray-600">{authorsMap[article.author_id]?.name || '不明なユーザー'}</span>
+                    <span className="text-sm text-gray-dark">{authorsMap[article.author_id]?.name || '不明なユーザー'}</span>
                   </div>
-
-                  {/* メタデータ */}
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>
+                  <div className="flex justify-between mt-1">
+                    <p className="text-xs text-gray-dark">
                       {formatDistance(new Date(article.created_at), new Date(), {
                         addSuffix: true,
                         locale: ja,
                       })}
-                    </span>
-                    {/* 閲覧数とダウンロード数は非表示（裏で管理するだけ） */}
+                    </p>
                   </div>
                 </div>
               </div>

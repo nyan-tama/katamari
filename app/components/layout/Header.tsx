@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { createClientSupabase } from '@/lib/supabase-client';
 import { User } from '@supabase/supabase-js';
+import { PlusIcon } from '@heroicons/react/24/outline';
 
 export default function Header() {
     const [user, setUser] = useState<User | null>(null);
@@ -58,8 +59,11 @@ export default function Header() {
                         <>
                             {user ? (
                                 <>
-                                    <Link href="/articles/new" className="text-card-foreground hover:text-primary transition-colors">
-                                        作れるもの登録
+                                    <Link
+                                        href="/articles/new"
+                                        className="text-card-foreground hover:text-primary transition-colors"
+                                    >
+                                        データの登録
                                     </Link>
                                     <Link href="/profile" className="text-card-foreground hover:text-primary transition-colors">
                                         マイページ

@@ -65,21 +65,21 @@ export default function FileDownloader({ articleId }: FileDownloaderProps) {
 
         // 展開するフォルダのパスを収集
         const foldersToExpand: Record<string, boolean> = {};
-        
+
         // パスごとに処理
         files.forEach(file => {
             const pathSegments = file.path ? file.path.split('/').filter(Boolean) : [];
-            
+
             // 第一階層と第二階層のフォルダを展開
             let currentPath = '';
-            
+
             // 最大2階層までを処理（パスセグメントの3番目まで）
             pathSegments.slice(0, 2).forEach(segment => {
                 currentPath = currentPath ? `${currentPath}/${segment}` : segment;
                 foldersToExpand[currentPath] = true;
             });
         });
-        
+
         // 展開するフォルダを設定
         setExpandedFolders(foldersToExpand);
         console.log('自動的に展開するフォルダ:', Object.keys(foldersToExpand));
@@ -110,7 +110,7 @@ export default function FileDownloader({ articleId }: FileDownloaderProps) {
 
             pathSegments.forEach((segment, index) => {
                 currentPath = currentPath ? `${currentPath}/${segment}` : segment;
-                
+
                 // フォルダの階層レベルを計算（0=ルート、1=第一階層、2=第二階層）
                 const level = index + 1;
 
@@ -158,7 +158,7 @@ export default function FileDownloader({ articleId }: FileDownloaderProps) {
         try {
             setDownloadingFolder(folderPath);
             setError(null);
-            
+
             await downloadFolderAsZip(folderPath, files, articleId);
         } catch (err) {
             console.error(`フォルダのZIP作成中にエラー:`, err);
@@ -179,11 +179,35 @@ export default function FileDownloader({ articleId }: FileDownloaderProps) {
     }
 
     return (
-        <div className="mt-8 bg-white border border-gray-200 rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">ダウンロードファイル</h2>
+        <div className="mt-8 bg-card border border-border rounded-lg p-6 shadow-sm">
+            {files.length > 0 && (
+                <div className="mb-4 flex justify-end">
+                    <button
+                        onClick={() => handleFolderDownload('')}
+                        disabled={!!downloadingFolder}
+                        className="bg-secondary hover:bg-opacity-90 text-white font-medium py-2 px-4 rounded-md flex items-center gap-2 disabled:opacity-50 transition-colors"
+                        title="すべてのファイルをZIPでダウンロード"
+                    >
+                        {downloadingFolder === '' ? (
+                            <>
+                                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                処理中...
+                            </>
+                        ) : (
+                            <>
+                                <DownloadIcon className="h-5 w-5" />
+                                すべてをZIPでダウンロード
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
 
             {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-4">
                     {error}
                 </div>
             )}
@@ -197,43 +221,16 @@ export default function FileDownloader({ articleId }: FileDownloaderProps) {
                     ファイル情報を読み込み中...
                 </div>
             ) : (
-                <>
-                    {files.length > 0 && (
-                        <div>
-                            <div className="mb-4 flex justify-end">
-                                <button
-                                    onClick={() => handleFolderDownload('')}
-                                    disabled={!!downloadingFolder}
-                                    className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md flex items-center gap-2 disabled:opacity-50"
-                                >
-                                    {downloadingFolder === '' ? (
-                                        <>
-                                            <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            処理中...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <DownloadIcon className="h-5 w-5" />
-                                            すべてダウンロード (ZIP)
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-
-                            <FolderStructure
-                                folder={folderStructure}
-                                expandedFolders={expandedFolders}
-                                onToggleFolder={toggleFolder}
-                                onDownloadFile={handleFileDownload}
-                                onDownloadFolder={handleFolderDownload}
-                                downloadingFolder={downloadingFolder}
-                            />
-                        </div>
-                    )}
-                </>
+                <div className="space-y-4">
+                    <FolderStructure
+                        folder={folderStructure}
+                        expandedFolders={expandedFolders}
+                        onToggleFolder={toggleFolder}
+                        onDownloadFile={handleFileDownload}
+                        onDownloadFolder={handleFolderDownload}
+                        downloadingFolder={downloadingFolder}
+                    />
+                </div>
             )}
         </div>
     );
