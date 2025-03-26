@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import NavigationButtons from '@/app/components/NavigationButtons';
 import FileDownloader from '@/app/components/FileDownloader';
+import type { Metadata } from 'next';
 
 // ビューカウント更新用のサーバーアクションを定義
 async function incrementViewCount(articleId: string) {
@@ -35,6 +36,84 @@ const getPublicUrl = (bucket: string, path: string | null): string => {
   // 公開URLを生成
   return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
 };
+
+// 動的メタデータ生成
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const supabase = createServerComponentClient({ cookies });
+
+  // 記事データを取得
+  const { data: article, error } = await supabase
+    .from('articles')
+    .select('*')
+    .eq('slug', params.slug)
+    .single();
+
+  if (error || !article) {
+    return {
+      title: 'ページが見つかりません',
+      description: '指定された記事が見つかりませんでした。',
+    };
+  }
+
+  // 記事の内容からHTMLタグを除去してプレーンテキスト化し、最初の100文字を説明文として使用
+  const plainText = article.content ? article.content.replace(/<[^>]*>/g, '') : '';
+  const description = plainText.length > 100 ? plainText.slice(0, 100) + '...' : plainText;
+
+  // 著者情報を取得
+  const { data: author } = await supabase
+    .from('users')
+    .select('name')
+    .eq('id', article.author_id)
+    .single();
+
+  // メイン画像URLを取得
+  let imageUrl = null;
+  if (article.hero_image_id) {
+    const { data: mediaData } = await supabase
+      .from('article_media')
+      .select('storage_bucket, storage_path')
+      .eq('id', article.hero_image_id)
+      .single();
+
+    if (mediaData) {
+      const { data } = supabase.storage
+        .from(mediaData.storage_bucket)
+        .getPublicUrl(mediaData.storage_path);
+
+      imageUrl = data.publicUrl;
+    }
+  }
+
+  return {
+    title: article.title,
+    description: description || '3Dプリンターデータの記事',
+    openGraph: {
+      type: 'article',
+      title: article.title,
+      description: description || '3Dプリンターデータの記事',
+      url: `https://katamari.jp/articles/${article.slug}`,
+      images: imageUrl
+        ? [
+          {
+            url: imageUrl,
+            width: 1200,
+            height: 630,
+            alt: article.title,
+          },
+        ]
+        : ['/og-image.jpg'],
+      publishedTime: article.published_at || article.created_at,
+      modifiedTime: article.updated_at,
+      authors: author ? [author.name] : undefined,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: article.title,
+      description: description || '3Dプリンターデータの記事',
+      images: imageUrl ? [imageUrl] : ['/og-image.jpg'],
+    },
+  };
+}
 
 // キャッシュを無効化するためのオプションを追加
 export const dynamic = 'force-dynamic';

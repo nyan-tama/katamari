@@ -1,35 +1,48 @@
 import { MetadataRoute } from 'next';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClientSupabase } from '@/lib/supabase-client';
+
+// 記事ページのURLを動的に取得するためのヘルパー
+async function getArticleSlugs() {
+    try {
+        const supabase = createClientSupabase();
+        const { data } = await supabase
+            .from('articles')
+            .select('slug, updated_at')
+            .eq('status', 'published')
+            .order('updated_at', { ascending: false });
+
+        return data || [];
+    } catch (error) {
+        console.error('サイトマップ生成エラー:', error);
+        return [];
+    }
+}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-    // サイトマップ生成でのベースURL
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://katamari.jp';
-
-    // 静的ページ - ログインページを除外
+    // 静的なページのリスト
     const staticPages = [
         {
-            url: baseUrl,
+            url: 'https://katamari.jp',
             lastModified: new Date(),
+            changeFrequency: 'daily',
+            priority: 1.0,
         },
         {
-            url: `${baseUrl}/articles`,
+            url: 'https://katamari.jp/articles',
             lastModified: new Date(),
+            changeFrequency: 'daily',
+            priority: 0.8,
         },
     ];
 
-    // 動的コンテンツ（記事詳細ページ）を取得
-    const supabase = createServerComponentClient({ cookies });
-
-    const { data: articles } = await supabase
-        .from('articles')
-        .select('id, updated_at')
-        .order('updated_at', { ascending: false });
-
-    const articlePages = articles?.map((article) => ({
-        url: `${baseUrl}/articles/${article.id}`,
+    // 動的な記事ページをサイトマップに追加
+    const articles = await getArticleSlugs();
+    const articlePages = articles.map(article => ({
+        url: `https://katamari.jp/articles/${article.slug}`,
         lastModified: new Date(article.updated_at),
-    })) || [];
+        changeFrequency: 'weekly',
+        priority: 0.7,
+    }));
 
     return [...staticPages, ...articlePages];
 } 

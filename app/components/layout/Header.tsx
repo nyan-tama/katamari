@@ -51,7 +51,7 @@ export default function Header() {
                     </Link>
 
                     <Link href="/articles" className="text-gray-700 hover:text-pink-500">
-                        記事一覧
+                        作れるもの一覧
                     </Link>
 
                     {!loading && (
@@ -59,7 +59,7 @@ export default function Header() {
                             {user ? (
                                 <>
                                     <Link href="/articles/new" className="text-gray-700 hover:text-pink-500">
-                                        記事作成
+                                        作れるもの登録
                                     </Link>
                                     <Link href="/profile" className="text-gray-700 hover:text-pink-500">
                                         マイページ

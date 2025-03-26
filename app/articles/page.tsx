@@ -116,20 +116,20 @@ export default async function ArticlesPage({ searchParams }: { searchParams: { p
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">記事一覧</h1>
+        <h1 className="text-3xl font-bold">作れるもの一覧</h1>
         <Link
           href="/articles/new"
           className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
         >
-          新規記事作成
+          新規作れるもの登録
         </Link>
       </div>
 
       {articles.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-lg text-gray-600">記事はまだありません。</p>
+          <p className="text-lg text-gray-600">作れるものはまだありません。</p>
           <p className="mt-2 text-gray-500">
-            最初の記事を作成してみましょう！
+            最初の作れるものを登録してみましょう！
           </p>
         </div>
       ) : (
