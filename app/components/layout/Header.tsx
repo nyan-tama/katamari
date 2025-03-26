@@ -61,9 +61,8 @@ export default function Header() {
                                 <>
                                     <Link
                                         href="/articles/new"
-                                        className="flex items-center gap-1 px-4 py-2 text-white bg-secondary rounded-full hover:bg-opacity-90 transition-colors"
+                                        className="text-card-foreground hover:text-primary transition-colors"
                                     >
-                                        <PlusIcon className="h-5 w-5" />
                                         データの登録
                                     </Link>
                                     <Link href="/profile" className="text-card-foreground hover:text-primary transition-colors">

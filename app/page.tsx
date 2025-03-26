@@ -180,8 +180,8 @@ export default async function Home() {
                       quality={85}
                     />
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                      <span className="text-4xl">📷</span>
+                    <div className="absolute inset-0 flex items-center justify-center text-gray-400 bg-gray-light">
+                      <span className="text-4xl">📦</span>
                     </div>
                   )}
                 </div>
