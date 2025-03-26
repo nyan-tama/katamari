@@ -18,6 +18,7 @@ interface Article {
   view_count: number;
   download_count: number;
   updated_at: string;
+  slug: string;
 }
 
 interface User {
@@ -172,7 +173,7 @@ export default async function Home() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {typedArticles && typedArticles.map((article) => (
-            <Link key={article.id} href={`/articles/${article.id}`} className="group">
+            <Link key={article.id} href={`/articles/${article.slug}`} className="group">
               <div className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
                 <div className="w-full h-48 bg-gray-100 relative overflow-hidden">
                   {article.hero_image_url ? (
