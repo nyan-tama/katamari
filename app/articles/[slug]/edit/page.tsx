@@ -83,7 +83,7 @@ export default function EditArticlePage({ params }: { params: { slug: string } }
                     setExistingFiles(downloadFiles);
                 }
 
-                // ヒーロー画像情報を取得
+                // メイン画像情報を取得
                 if (article.hero_image_id) {
                     const { data: mediaData, error: mediaError } = await supabase
                         .from('article_media')
@@ -167,7 +167,7 @@ export default function EditArticlePage({ params }: { params: { slug: string } }
                     status: saveStatus,
                 };
 
-                // ヒーロー画像IDがあれば追加
+                // メイン画像IDがあれば追加
                 if (newHeroImageId) {
                     // 記事テーブルの hero_image_id フィールドを直接更新
                     const { error: updateError } = await supabase
@@ -176,7 +176,7 @@ export default function EditArticlePage({ params }: { params: { slug: string } }
                         .eq('id', articleId);
 
                     if (updateError) {
-                        console.error('ヒーロー画像ID更新エラー:', updateError);
+                        console.error('メイン画像ID更新エラー:', updateError);
                     }
                 }
 
@@ -217,7 +217,7 @@ export default function EditArticlePage({ params }: { params: { slug: string } }
         router.push(`/articles/${articleSlug}`);
     };
 
-    // ヒーロー画像選択のハンドラ
+    // メイン画像選択のハンドラ
     const handleHeroImageSelected = (file: File) => {
         setHeroImage(file);
     };
@@ -260,7 +260,7 @@ export default function EditArticlePage({ params }: { params: { slug: string } }
                 />
             </div>
 
-            {/* ヒーロー画像アップロード */}
+            {/* メイン画像アップロード */}
             <HeroImageUploader
                 currentImageUrl={currentHeroImageUrl}
                 onImageSelected={handleHeroImageSelected}

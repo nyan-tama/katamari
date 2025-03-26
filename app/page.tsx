@@ -72,7 +72,7 @@ export default async function Home() {
   // データに型を指定
   const typedArticles = latestArticles as Article[] || [];
 
-  // ヒーロー画像情報を取得
+  // メイン画像情報を取得
   if (typedArticles && typedArticles.length > 0) {
     const articleIds = typedArticles.filter(a => a.hero_image_id).map(a => a.hero_image_id);
 
@@ -94,7 +94,7 @@ export default async function Home() {
           [key: string]: unknown;
         }>);
 
-        // 記事データにヒーロー画像URLを追加
+        // 記事データにメイン画像URLを追加
         typedArticles.forEach(article => {
           if (article.hero_image_id && mediaMap[article.hero_image_id]) {
             const media = mediaMap[article.hero_image_id];
@@ -113,7 +113,7 @@ export default async function Home() {
           }
         });
       } else if (mediaError) {
-        console.error('ヒーロー画像の取得に失敗しました:', mediaError);
+        console.error('メイン画像の取得に失敗しました:', mediaError);
       }
     }
   }
@@ -139,11 +139,11 @@ export default async function Home() {
       <section className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl p-8 md:p-12 mb-12">
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 mb-4">
-            3Dプリント関連の知識・経験・制作物を共有しよう
+            3Dプリンターのデータで面白い、かわいい、役に立つを共有しよう
           </h1>
           <p className="text-lg md:text-xl text-gray-600 mb-8">
-            「カタマリ」は、あなたの創作体験や知識を共有する<br className="hidden md:block" />
-            3Dプリントコミュニティプラットフォームです
+            「カタマリ」は、あなたの経験や知識を共有する<br className="hidden md:block" />
+            3Dプリンターデータプラットフォームです
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -151,12 +151,6 @@ export default async function Home() {
               className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-lg font-medium text-lg transition-colors"
             >
               記事を探す
-            </Link>
-            <Link
-              href="/login"
-              className="bg-white hover:bg-gray-100 text-pink-500 border border-pink-500 px-6 py-3 rounded-lg font-medium text-lg transition-colors"
-            >
-              投稿する
             </Link>
           </div>
         </div>
@@ -267,18 +261,6 @@ export default async function Home() {
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section className="py-12">
-        <div className="container mx-auto px-4">
-          <h1 className="text-4xl font-bold text-center mb-6">
-            3Dプリントで、共有する喜び
-          </h1>
-          <p className="text-xl text-center text-gray-600 mb-12 max-w-3xl mx-auto">
-            カタマリは、3Dプリントに関する知識・経験・制作物を共有できるプラットフォーム。
-            あなたの創作体験をみんなで共有しましょう。
-          </p>
         </div>
       </section>
     </div>

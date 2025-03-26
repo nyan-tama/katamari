@@ -206,7 +206,7 @@ export const filterSystemFiles = (files: File[]) => {
 };
 
 /**
- * ヒーロー画像をアップロードする関数
+ * メイン画像をアップロードする関数
  */
 export const uploadHeroImage = async (articleId: string, heroImage: File) => {
     try {
@@ -254,7 +254,7 @@ export const uploadHeroImage = async (articleId: string, heroImage: File) => {
 
         return null;
     } catch (err) {
-        console.error('ヒーロー画像アップロードエラー:', err);
+        console.error('メイン画像アップロードエラー:', err);
         throw err;
     }
 }; 

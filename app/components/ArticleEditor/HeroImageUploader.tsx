@@ -10,16 +10,16 @@ interface HeroImageUploaderProps {
 }
 
 /**
- * ヒーロー画像アップロードコンポーネント
+ * メイン画像アップロードコンポーネント
  */
-export default function HeroImageUploader({ 
-    currentImageUrl, 
+export default function HeroImageUploader({
+    currentImageUrl,
     onImageSelected,
     error
 }: HeroImageUploaderProps) {
     const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
 
-    // ヒーロー画像の選択ハンドラ
+    // メイン画像の選択ハンドラ
     const handleHeroImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -48,7 +48,7 @@ export default function HeroImageUploader({
     return (
         <div className="mb-6">
             <label htmlFor="heroImage" className="block text-sm font-medium text-gray-700 mb-1">
-                ヒーロー画像（オプション）
+                メイン画像（オプション）
             </label>
             <input
                 type="file"
@@ -64,7 +64,7 @@ export default function HeroImageUploader({
                 <div className="mt-2">
                     <img
                         src={previewUrl}
-                        alt="ヒーロー画像プレビュー"
+                        alt="メイン画像プレビュー"
                         className="max-h-64 object-cover rounded-md"
                     />
                 </div>
