@@ -686,11 +686,24 @@ export default function ModelPreviewModal({ isOpen, onClose, fileData, articleId
         fetchModelUrl();
     }, [isOpen, fileData, articleId, modelUrl]);
 
+    // クリックイベントハンドラー
+    const handleOverlayClick = (e: React.MouseEvent) => {
+        if (e.target === e.currentTarget) {
+            onClose();
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-            <div className="bg-white rounded-lg w-full max-w-4xl h-[80vh] flex flex-col">
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75"
+            onClick={handleOverlayClick}
+        >
+            <div
+                className="bg-white rounded-lg w-full max-w-4xl h-[80vh] flex flex-col"
+                onClick={e => e.stopPropagation()} // モーダル内のクリックは伝播させない
+            >
                 <div className="flex justify-between items-center p-4 border-b">
                     <h3 className="text-xl font-medium">
                         {fileData?.original_name || '3Dモデルプレビュー'}
