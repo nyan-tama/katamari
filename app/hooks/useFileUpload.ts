@@ -27,7 +27,7 @@ export function useFileUpload({ setFilesError, setFilesErrorType }: UseFileUploa
       // システムファイルのリスト
       const systemFiles = ['.gitignore', 'HEAD', '.env', '.DS_Store', 'Thumbs.db', 'COMMIT_EDITMSG'];
 
-      let systemFolderFiles: File[] = [];
+      const systemFolderFiles: File[] = [];
       let detectedSystemFolder = '';
 
       // 問題のないファイルとシステムフォルダを含むファイルを分離
@@ -92,8 +92,8 @@ export function useFileUpload({ setFilesError, setFilesErrorType }: UseFileUploa
         // フォルダアップロードの場合、最初のファイルのパスから元のフォルダ名を抽出（サブフォルダとして使用）
         if (files.length > 0) {
           const firstFile = files[0] as ExtendedFile;
-          originalFolderName = firstFile.webkitRelativePath && firstFile.webkitRelativePath.includes('/') 
-            ? firstFile.webkitRelativePath.split('/')[0] 
+          originalFolderName = firstFile.webkitRelativePath && firstFile.webkitRelativePath.includes('/')
+            ? firstFile.webkitRelativePath.split('/')[0]
             : '';
           console.log('フォルダアップロード検出:', {
             originalFolderName,
@@ -149,11 +149,32 @@ export function useFileUpload({ setFilesError, setFilesErrorType }: UseFileUploa
 
             // 安全なストレージパスの生成（タイムスタンプ + ファイル名）
             const timestamp = Date.now();
-            const safeFileName = encodeURIComponent(file.name);
-            const storagePath = `${articleId}/${timestamp}_${safeFileName}`;
+
+            // ファイル名から特殊文字を強制的に削除（完全に安全な文字のみを使用）
+            const safeFileName = file.name
+              .replace(/[\[\]\(\){}<>\&\+\,\!\@\#\$\%\^\*\=\:\;\'\"\/\?\\\|]/g, '_') // すべての特殊文字を置換
+              .replace(/\s+/g, '_') // スペースをアンダースコアに置換
+              .replace(/_+/g, '_'); // 連続するアンダースコアを1つに統合
+
+            // 安全なパスを作成（letで宣言して再代入可能に）
+            let storagePath = `${articleId}/${timestamp}_${safeFileName}`;
+
+            console.log('元のファイル名:', file.name);
+            console.log('サニタイズ後のファイル名:', safeFileName);
+            console.log('作成されたストレージパス:', storagePath);
+
+            // 念のためパスが問題ないか検証
+            if (storagePath.includes('[') || storagePath.includes(']') || storagePath.includes('(') || storagePath.includes(')')) {
+              console.error('警告: サニタイズ後もパスに特殊文字が含まれています:', storagePath);
+              // 最後の手段: 完全な英数字と._-のみに置換
+              const fallbackFileName = timestamp + '_' +
+                safeFileName.replace(/[^a-zA-Z0-9\._-]/g, '_');
+              console.log('フォールバックファイル名に変更:', fallbackFileName);
+              storagePath = `${articleId}/${fallbackFileName}`;
+            }
 
             // Supabaseストレージにアップロード
-            const { data, error: uploadError } = await supabase.storage
+            const { error: uploadError } = await supabase.storage
               .from('downloads')
               .upload(storagePath, file, {
                 cacheControl: '3600',

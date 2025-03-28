@@ -184,8 +184,8 @@ export default function NewArticlePage() {
           }
         }
 
-        // 成功したら記事詳細ページにリダイレクト
-        router.push(`/articles/${article.id}`);
+        // 成功したら記事詳細ページにslugを使用してリダイレクト
+        router.push(`/articles/${article.slug}`);
       } catch (err) {
         console.error('記事保存エラー（詳細）:', JSON.stringify(err));
         setError('記事の保存に失敗しました');
